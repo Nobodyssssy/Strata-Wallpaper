@@ -28,6 +28,11 @@ public static class EngineLauncher
         {
             foreach (var root in new[] { dir.FullName, Path.Combine(dir.FullName, "Blueprintengine") })
             {
+                // 1. Check directly in the folder first (for Release/Installed versions)
+                var directPath = Path.GetFullPath(Path.Combine(root, EngineExeName));
+                if (File.Exists(directPath)) candidates.Add(directPath);
+
+                // 2. Check the Visual Studio build subfolders
                 foreach (var config in new[] { "Debug", "Release" })
                 {
                     foreach (var subdir in new[] { $"x64\\{config}", config, $"bin\\x64\\{config}" })

@@ -4537,19 +4537,10 @@ int main() {
         (!g_dayNight.dayVideo.empty() || !g_dayNight.nightVideo.empty()))
         anyVideoConfigured = true;
 
+    // If no video is configured, just run silently in the background.
+    // The C# Control Panel handles the UI for the user to pick one.
     if (!anyVideoConfigured) {
-        std::cout << "No video configured. Opening file picker...\n";
-        std::string picked = PromptForVideoFile();
-        if (picked.empty()) {
-            std::cout << "No video selected. Exiting.\n";
-            StopPrayerFetch();
-            DestroyTrayAndHiddenWindow();
-            UnloadMpvDll();
-            ReleaseSingleInstance();
-            return 1;
-        }
-        SaveVideoPath(picked);
-        std::cout << "Saved to settings: " << picked << "\n";
+        std::cout << "[INFO  ] No video configured on startup. Waiting for IPC commands from panel.\n";
     }
 
     {
