@@ -7,56 +7,45 @@
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<Platforms>x86;x64;ARM64</Platforms>
 		<RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
 		<UseWinUI>true</UseWinUI>
-		<WinUISDKReferences>false</WinUISDKReferences>
-		<EnableMsixTooling>false</EnableMsixTooling>
 		<Nullable>enable</Nullable>
+		
+		<!-- Required for unpackaged, self-contained apps -->
 		<WindowsPackageType>None</WindowsPackageType>
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 		<SelfContained>true</SelfContained>
+		
+		<!-- Must be true for unpackaged apps to generate the resources.pri file correctly -->
+		<EnableMsixTooling>true</EnableMsixTooling>
+		
+		<!-- The crash culprits -->
+		<PublishTrimmed>false</PublishTrimmed>
+		<PublishReadyToRun>false</PublishReadyToRun>
+		<PublishSingleFile>false</PublishSingleFile>
+		<IsTrimmable>false</IsTrimmable>
+
+		<!-- Force the PRI file to be generated -->
+		<AppxGenerateProjectPriFile>true</AppxGenerateProjectPriFile>
+		<GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+		<AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+
+		<ApplicationIcon>Strata.ico</ApplicationIcon>
 		<EnableDefaultPageItems>false</EnableDefaultPageItems>
 	</PropertyGroup>
-	<ItemGroup>
-	  <None Remove="LockPage.xaml" />
-	  <None Remove="PerformancePage.xaml" />
-	  <None Remove="Styles\Aura.xaml" />
-	  <None Remove="Styles\Themes\Catppuccin.xaml" />
-	  <None Remove="Styles\Themes\Dracula.xaml" />
-	  <None Remove="WallpaperDetailPane.xaml" />
-	</ItemGroup>
 
 	<ItemGroup>
-		<Page Include="LockPage.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="MainWindow.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="HomePage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="LibraryPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="PerformancePage.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="SettingsPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="Styles\Themes\Aura.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="Styles\Themes\Catppuccin.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="Styles\Themes\Dracula.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
-		<Page Include="WallpaperDetailPane.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</Page>
+		<Page Include="LockPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="MainWindow.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="HomePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="LibraryPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="PerformancePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="SettingsPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="WallpaperDetailPane.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		
+		<!-- Theme files must NOT have the MSBuild:Compile generator -->
+		<Page Include="Styles\Themes\Aura.xaml" />
+		<Page Include="Styles\Themes\Catppuccin.xaml" />
+		<Page Include="Styles\Themes\Dracula.xaml" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -77,11 +66,9 @@
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
 	</ItemGroup>
 
-	<PropertyGroup>
-		<PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-		<PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-		<PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-		<PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
-		<ApplicationIcon>Strata.ico</ApplicationIcon>
-	</PropertyGroup>
+	<ItemGroup>
+	  <Content Update="Assets\Roboto-Regular.ttf">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
 </Project>

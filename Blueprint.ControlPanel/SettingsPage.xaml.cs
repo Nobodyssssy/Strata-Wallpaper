@@ -1,4 +1,3 @@
-using Path = System.IO.Path;
 using Blueprint.ControlPanel.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -8,12 +7,14 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using Windows.UI;
+using Path = System.IO.Path;
 
 namespace Blueprint.ControlPanel;
 
@@ -27,6 +28,12 @@ public sealed partial class SettingsPage : Page
     private static readonly int[] PrayerMethodIds = { 3, 4, 5, 1, 19, 12 };
 
     private static readonly HttpClient _http = new();
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool WritePrivateProfileString(string section, string key, string val, string filePath);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetPrivateProfileString(string section, string key, string def, System.Text.StringBuilder retVal, int size, string filePath);
 
     // Day/Night video paths (kept in memory, mirrored to the engine).
     private string _dnDayVideo = "";
@@ -85,7 +92,7 @@ public sealed partial class SettingsPage : Page
                 "Light" => 2,
                 _ => 0
             };
-
+            UseThemeFontToggle.IsOn = ui.UseThemeFont;
             CloseAsk.IsChecked = ui.CloseAction == "ask";
             CloseExit.IsChecked = ui.CloseAction == "exit";
             CloseTray.IsChecked = ui.CloseAction == "tray";
@@ -113,10 +120,84 @@ public sealed partial class SettingsPage : Page
 
     private void OnPageUnloaded(object sender, RoutedEventArgs e) => _cts.Cancel();
 
+    private void LoadDnFromIni()
+    {
+        string ini = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blueprint", "settings.ini");
+        if (!File.Exists(ini)) return;
+
+        _loading = true;
+        try
+        {
+            var sb = new System.Text.StringBuilder(512);
+            string GetVal(string sec, string key, string def)
+            {
+                GetPrivateProfileString(sec, key, def, sb, sb.Capacity, ini);
+                return sb.ToString();
+            }
+
+            DayNightEnabledToggle.IsOn = GetVal("DayNight", "Enabled", "0") == "1";
+            string mode = GetVal("DayNight", "Mode", "sunrise");
+            DnModeManual.IsChecked = mode == "manual";
+            DnModeSunrise.IsChecked = mode == "sunrise";
+            DnModePrayer.IsChecked = mode == "prayer";
+
+            DnManualDayStart.Time = ParseHHMM(GetVal("DayNight", "ManualDayStart", "07:00"));
+            DnManualNightStart.Time = ParseHHMM(GetVal("DayNight", "ManualNightStart", "19:00"));
+
+            DnLatBox.Text = GetVal("DayNight", "Latitude", "0.0");
+            DnLngBox.Text = GetVal("DayNight", "Longitude", "0.0");
+
+            int method = int.TryParse(GetVal("DayNight", "PrayerMethod", "3"), out var m) ? m : 3;
+            DnMethodCombo.SelectedIndex = Math.Max(0, Array.IndexOf(PrayerMethodIds, method));
+            DnDuhaOffsetBox.Value = int.TryParse(GetVal("DayNight", "DuhaOffsetMinutes", "20"), out var d) ? d : 20;
+
+            _dnDayVideo = GetVal("DayNight", "DayVideo", "");
+            _dnNightVideo = GetVal("DayNight", "NightVideo", "");
+            DnDayVideoText.Text = ShortPath(_dnDayVideo);
+            DnNightVideoText.Text = ShortPath(_dnNightVideo);
+
+            // Load offline prayer times from JSON
+            string jsonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blueprint", "prayer_times.json");
+            if (File.Exists(jsonPath))
+            {
+                var json = File.ReadAllText(jsonPath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("days", out var days))
+                {
+                    string todayDate = DateTime.Now.ToString("dd-MM-yyyy");
+                    bool found = false;
+                    foreach (var day in days.EnumerateArray())
+                    {
+                        if (day.GetProperty("date").GetString() == todayDate)
+                        {
+                            string sr = day.GetProperty("sunrise").GetString() ?? "";
+                            string mg = day.GetProperty("maghrib").GetString() ?? "";
+                            DnTodayText.Text = $"Today ({todayDate})  ·  Sunrise {sr}  ·  Maghrib {mg}";
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) DnTodayText.Text = "Today's prayer times not yet available.";
+                }
+            }
+            UpdateDnPanels();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
     private async Task LoadEngineSettingsAsync()
     {
         var response = await _client.SendAsync("get_settings", ct: _cts.Token);
-        if (_cts.IsCancellationRequested || response == null) return;
+        if (_cts.IsCancellationRequested) return;
+
+        if (response == null)
+        {
+            LoadDnFromIni();
+            return;
+        }
 
         var body = response["body"];
         if (body == null) return;
@@ -259,6 +340,7 @@ public sealed partial class SettingsPage : Page
 
         // Apply immediately without restarting
         ThemeService.ApplyBaseTheme(Application.Current, baseTheme);
+        ThemeService.ApplyFont(Application.Current, ui.UseThemeFont); // <-- ADDED THIS
         ThemeService.Apply(Application.Current, ThemeService.Get(UiSettings.Current.AccentScheme));
 
         ForceUIUpdate();
@@ -377,8 +459,7 @@ public sealed partial class SettingsPage : Page
 
             if (resp == null && GetDnMode() == "prayer")
             {
-                DnTodayText.Text =
-                    "Engine is not running — start it from the Home page to fetch prayer times.";
+                DnTodayText.Text = "Engine offline. Click 'Detect City' to fetch times directly.";
                 return;
             }
 
@@ -512,8 +593,31 @@ public sealed partial class SettingsPage : Page
 
                 if (saveResp == null)
                 {
-                    DnCityResultText.Text =
-                        "Engine is not running — start it from the Home page, then click Detect again.";
+                    string ini = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blueprint", "settings.ini");
+                    WritePrivateProfileString("DayNight", "Latitude", lat.ToString("0.######"), ini);
+                    WritePrivateProfileString("DayNight", "Longitude", lng.ToString("0.######"), ini);
+                    WritePrivateProfileString("DayNight", "PrayerMethod", GetSelectedMethod().ToString(), ini);
+                    WritePrivateProfileString("DayNight", "DuhaOffsetMinutes", ((int)DnDuhaOffsetBox.Value).ToString(), ini);
+
+                    DnCityResultText.Text = "Fetching prayer times directly...";
+                    try
+                    {
+                        string today = DateTime.Now.ToString("dd-MM-yyyy");
+                        string apiUrl = $"https://api.aladhan.com/v1/timings/{today}?latitude={lat}&longitude={lng}&method={GetSelectedMethod()}";
+                        var apiResp = await _http.GetStringAsync(apiUrl);
+                        using var apiDoc = System.Text.Json.JsonDocument.Parse(apiResp);
+                        var timings = apiDoc.RootElement.GetProperty("data").GetProperty("timings");
+
+                        string sr = timings.GetProperty("Sunrise").GetString()?.Substring(0, 5) ?? "";
+                        string mg = timings.GetProperty("Maghrib").GetString()?.Substring(0, 5) ?? "";
+
+                        DnTodayText.Text = $"Today ({today})  ·  Sunrise {sr}  ·  Maghrib {mg}";
+                        DnCityResultText.Text = "Location saved and prayer times fetched.";
+                    }
+                    catch
+                    {
+                        DnCityResultText.Text = "Location saved. Failed to fetch times (check internet).";
+                    }
                     return;
                 }
 
@@ -632,6 +736,25 @@ public sealed partial class SettingsPage : Page
     {
         if (string.IsNullOrEmpty(p)) return "(none)";
         try { return Path.GetFileName(p); } catch { return p; }
+    }
+
+    private void OnUseThemeFontToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var ui = UiSettings.Current;
+        ui.UseThemeFont = UseThemeFontToggle.IsOn;
+        ui.Save();
+
+        ThemeService.ApplyFont(Application.Current, ui.UseThemeFont);
+
+        // Force refresh
+        if (App.MainWindow?.Content is FrameworkElement root)
+        {
+            var currentTheme = root.RequestedTheme;
+            root.RequestedTheme = ElementTheme.Light;
+            root.RequestedTheme = ElementTheme.Dark;
+            root.RequestedTheme = currentTheme;
+        }
     }
 
     private void ForceUIUpdate()

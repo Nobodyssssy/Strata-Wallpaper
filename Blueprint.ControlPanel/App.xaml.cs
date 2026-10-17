@@ -11,24 +11,30 @@ public partial class App : Application
     public static Window? MainWindow { get; private set; }
 
     private static Mutex? _singleInstanceMutex;
+    internal static EventWaitHandle? ShowPanelEvent { get; private set; }
 
     private const string WindowTitle = "Strata Wallpaper";
     private const string MutexName = "Local\\StrataWallpaper_Panel_SingleInstance";
+    internal const string ShowPanelEventName = "Local\\StrataWallpaper_Panel_Show";
 
     public App()
     {
         this.InitializeComponent();
 
-        // ── Apply the persisted accent scheme BEFORE the first window is created.
-        // Overrides Application.Resources so every ThemeResource that reads
-        // SystemAccentColor* picks up the chosen palette.
         try
         {
+            // 1. Load the Base Theme dictionary (Aura, Catppuccin, Dracula)
+            ThemeService.ApplyBaseTheme(this, UiSettings.Current.BaseTheme ?? "Aura");
+
+            // 2. Apply the Font
+            ThemeService.ApplyFont(this, UiSettings.Current.UseThemeFont);
+
+            // 3. Apply the Accent Color
             ThemeService.Apply(this, ThemeService.Get(UiSettings.Current.AccentScheme));
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Strata] accent apply failed: {ex}");
+            System.Diagnostics.Debug.WriteLine($"[Strata] theme apply failed: {ex}");
         }
 
         this.UnhandledException += (sender, e) =>
@@ -45,13 +51,19 @@ public partial class App : Application
 
         if (!createdNew)
         {
+            SignalExistingWindow();
             ActivateExistingWindow();
             Environment.Exit(0);
             return;
         }
 
+        ShowPanelEvent = new EventWaitHandle(
+            false, EventResetMode.AutoReset, ShowPanelEventName);
+
         // Apply theme
         ThemeService.ApplyBaseTheme(Application.Current, UiSettings.Current.BaseTheme ?? "Aura");
+        ThemeService.ApplyFont(this, UiSettings.Current.UseThemeFont);
+        ThemeService.Apply(this, ThemeService.Get(UiSettings.Current.AccentScheme));
 
         // Create window
         MainWindow = new MainWindow();
@@ -73,6 +85,17 @@ public partial class App : Application
             if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
             SetForegroundWindow(hwnd);
         }
+    }
+
+    private static void SignalExistingWindow()
+    {
+        try
+        {
+            using var signal = EventWaitHandle.OpenExisting(ShowPanelEventName);
+            signal.Set();
+        }
+        catch (WaitHandleCannotBeOpenedException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

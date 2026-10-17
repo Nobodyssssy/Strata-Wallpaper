@@ -24,44 +24,46 @@
         <!-- ═══════════ Toolbar ═══════════ -->
         <Grid Grid.Row="1" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
+            <Border Grid.Column="0" CornerRadius="6" Padding="2" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <ToggleButton x:Name="ViewGalleryToggle" Content="Gallery" IsChecked="True" Click="OnViewToggleClick" Tag="gallery" Padding="12,6" CornerRadius="4" Style="{StaticResource AccentToggleButtonStyle}"/>
+                    <ToggleButton x:Name="ViewFolderToggle" Content="Folders" Click="OnViewToggleClick" Tag="folder" Padding="12,6" CornerRadius="4" Style="{StaticResource AccentToggleButtonStyle}"/>
+                </StackPanel>
+            </Border>
+
             <AutoSuggestBox x:Name="SearchBox"
-                            Grid.Column="0"
+                            Grid.Column="1"
                             MaxWidth="380"
                             HorizontalAlignment="Left"
                             PlaceholderText="Search wallpapers..."
                             QueryIcon="Find"
                             TextChanged="OnSearchChanged"/>
 
-            <ComboBox x:Name="SortCombo"
-                      Grid.Column="1"
-                      MinWidth="200"
-                      SelectionChanged="OnSortChanged"
-                      VerticalAlignment="Center">
+            <ComboBox x:Name="SortCombo" Grid.Column="2" MinWidth="160" SelectionChanged="OnSortChanged" VerticalAlignment="Center">
                 <ComboBoxItem Content="Name (A → Z)"/>
                 <ComboBoxItem Content="Name (Z → A)"/>
-                <ComboBoxItem Content="Recently added"/>
-                <ComboBoxItem Content="Recently applied"/>
+                <ComboBoxItem Content="Date Added"/>
                 <ComboBoxItem Content="Favorites first"/>
-                <ComboBoxItem Content="Duration (shortest)"/>
-                <ComboBoxItem Content="Resolution (smallest)"/>
-                <ComboBoxItem Content="File size (smallest)"/>
-                <ComboBoxItem Content="Recently modified"/>
+                <ComboBoxItem Content="Resolution (High → Low)"/>
+                <ComboBoxItem Content="Duration (Short → Long)"/>
+                <ComboBoxItem Content="File Size (Small → Large)"/>
             </ComboBox>
 
-            <Button Grid.Column="2" Click="OnRefreshClick">
+                    <Button Grid.Column="3" Click="OnRefreshClick" Style="{StaticResource AccentButtonStyle}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE72C;" FontSize="13"/>
                     <TextBlock Text="Refresh" FontSize="12"/>
                 </StackPanel>
             </Button>
 
-            <Button Grid.Column="3" Click="OnAddFolderClick">
+                    <Button Grid.Column="4" Click="OnAddFolderClick" Style="{StaticResource AccentButtonStyle}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE8F4;" FontSize="13"/>
                     <TextBlock Text="Add Folder" FontSize="12"/>
@@ -69,8 +71,17 @@
             </Button>
         </Grid>
 
+        <!-- ═══════════ Breadcrumb (Folder View Only) ═══════════ -->
+        <BreadcrumbBar x:Name="FolderBreadcrumb" Grid.Row="2" Visibility="Collapsed" ItemClicked="OnBreadcrumbClicked" Margin="0,8,0,0">
+            <BreadcrumbBar.ItemTemplate>
+                <DataTemplate x:DataType="local:BreadcrumbNode">
+                    <TextBlock Text="{x:Bind Name}"/>
+                </DataTemplate>
+            </BreadcrumbBar.ItemTemplate>
+        </BreadcrumbBar>
+
         <!-- ═══════════ Filter chips ═══════════ -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+        <StackPanel x:Name="FilterChips" Grid.Row="2" Orientation="Horizontal" Spacing="8">
             <ToggleButton x:Name="ChipAll"       Content="All"       Tag="all"       IsChecked="True" Click="OnFilterChipClick"
                           Padding="14,4" CornerRadius="14" FontSize="12"/>
             <ToggleButton x:Name="ChipVideo"     Content="Video"     Tag="video"     Click="OnFilterChipClick"
@@ -112,10 +123,151 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
 
+                <!-- Folder Browser View (Side-by-side) -->
+                <Grid x:Name="FolderViewPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Folder Tree on the left -->
+                    <ListView x:Name="FolderTreeView" Grid.Column="0" Margin="0,0,12,0" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="OnFolderTreeClick">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,4"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListViewItem">
+                                            <ListViewItemPresenter
+                                                ContentTransitions="{TemplateBinding ContentTransitions}"
+                                                SelectionCheckMarkVisualEnabled="False"
+                                                PointerOverBackground="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                SelectedBackground="{ThemeResource AccentFillColorSecondaryBrush}"
+                                                SelectedPointerOverBackground="{ThemeResource AccentFillColorTertiaryBrush}"
+                                                PressedBackground="{ThemeResource SubtleFillColorTertiaryBrush}"
+                                                SelectedPressedBackground="{ThemeResource AccentFillColorSecondaryBrush}"
+                                                CornerRadius="6" />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:FolderDisplayItem">
+                                <StackPanel Orientation="Horizontal" Spacing="12" Padding="12,8">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Files in selected folder on the right -->
+                    <GridView x:Name="FileListView"
+                              Grid.Column="1"
+                              SelectionMode="Single"
+                              IsItemClickEnabled="True"
+                              ItemClick="OnFileItemClick"
+                              HorizontalAlignment="Stretch"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.HorizontalScrollMode="Disabled">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal"
+                                               ItemWidth="212"
+                                               ItemHeight="214"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+
+                        <GridView.ItemTemplate>
+                            <DataTemplate x:DataType="local:WallpaperItem">
+                                <Grid Width="204" Height="206" Margin="4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="140"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.RowSpan="2"
+                                            CornerRadius="8"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"/>
+
+                                    <Border Grid.Row="0"
+                                            Margin="1"
+                                            CornerRadius="7,7,0,0"
+                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                        <Grid>
+                                            <Image Source="{x:Bind Thumbnail, Mode=OneWay}"
+                                                   Visibility="{x:Bind ThumbnailVisibility, Mode=OneWay}"
+                                                   Stretch="UniformToFill"/>
+
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="5"
+                                                        Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
+                                                <FontIcon Glyph="{x:Bind FileTypeGlyph}"
+                                                          FontSize="32"
+                                                          HorizontalAlignment="Center"
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                <TextBlock Text="No thumbnail"
+                                                           FontSize="11"
+                                                           HorizontalAlignment="Center"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+
+                                            <ProgressRing IsActive="True"
+                                                          Width="28"
+                                                          Height="28"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          Visibility="{x:Bind LoadingVisibility, Mode=OneWay}"/>
+
+                                            <Border Background="{ThemeResource OverlayScrimBrush}"
+                                                    Visibility="{x:Bind MissingOverlayVisibility, Mode=OneWay}">
+                                                <StackPanel HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Spacing="4">
+                                                    <FontIcon Glyph="&#xE7BA;"
+                                                              FontSize="24"
+                                                               Foreground="{ThemeResource ErrorTextBrush}"/>
+                                                    <TextBlock Text="File missing"
+                                                               FontSize="11"
+                                                               HorizontalAlignment="Center"
+                                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <StackPanel Grid.Row="1"
+                                                Margin="10,7,10,6"
+                                                Spacing="3">
+                                        <TextBlock Text="{x:Bind DisplayName}"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTipService.ToolTip="{x:Bind DisplayName}"/>
+                                        <TextBlock Text="{x:Bind MetaLine}"
+                                                   FontSize="10"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+                </Grid>
+
                 <GridView x:Name="WallpaperGrid"
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
                           ItemClick="OnWallpaperItemClick">
+
+                    <!-- Group style removed for flat grid -->
+
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal"
@@ -147,17 +299,17 @@
                                                       VerticalAlignment="Center"
                                                       Visibility="{x:Bind LoadingVisibility, Mode=OneWay}"/>
 
-                                        <!-- Missing-file overlay (below interactives) -->
-                                        <Border Background="#B3000000"
+                                        <!-- Missing-file overlay -->
+                                                <Border Background="{ThemeResource OverlayScrimBrush}"
                                                 Visibility="{x:Bind MissingOverlayVisibility, Mode=OneWay}">
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         Spacing="4">
-                                                <FontIcon Glyph="&#xE7BA;" FontSize="26" Foreground="#FF7C7C"/>
+                                                <FontIcon Glyph="&#xE7BA;" FontSize="26" Foreground="{ThemeResource ErrorTextBrush}"/>
                                                 <TextBlock Text="File missing"
                                                            FontSize="11"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="White"/>
+                                                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </StackPanel>
                                         </Border>
 
@@ -167,9 +319,9 @@
                                                 Margin="8"
                                                 Padding="6,2"
                                                 CornerRadius="4"
-                                                Background="#CC00C8B4"
+                                                 Background="{ThemeResource LiveContentBadgeBrush}"
                                                 Visibility="{x:Bind Live2DBadgeVisibility, Mode=OneWay}">
-                                            <TextBlock Text="Live2D" FontSize="10" Foreground="White"/>
+                                            <TextBlock Text="Live2D" FontSize="10" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                         </Border>
 
                                         <!-- Favorite star -->
@@ -178,7 +330,7 @@
                                                 Margin="8"
                                                 Padding="8"
                                                 CornerRadius="16"
-                                                Background="#AA000000"
+                                                 Background="{ThemeResource OverlayButtonBrush}"
                                                 BorderThickness="0"
                                                 Tag="{x:Bind}"
                                                 Click="OnFavoriteClick"
@@ -195,24 +347,24 @@
                                                     VerticalAlignment="Bottom"
                                                     Margin="8">
                                             <Border Padding="5,2" CornerRadius="3"
-                                                    Background="#CC0A84FF"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
                                                     Visibility="{x:Bind M1BadgeVisibility, Mode=OneWay}">
-                                                <TextBlock Text="M1" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                                 <TextBlock Text="M1" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
                                             <Border Padding="5,2" CornerRadius="3"
-                                                    Background="#CC0A84FF"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
                                                     Visibility="{x:Bind M2BadgeVisibility, Mode=OneWay}">
-                                                <TextBlock Text="M2" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                                <TextBlock Text="M2" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
                                             <Border Padding="5,2" CornerRadius="3"
-                                                    Background="#CC0A84FF"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
                                                     Visibility="{x:Bind BothBadgeVisibility, Mode=OneWay}">
-                                                <TextBlock Text="Both" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                                <TextBlock Text="Both" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
                                             <Border Padding="5,2" CornerRadius="3"
-                                                    Background="#CCE72E5A"
+                                                     Background="{ThemeResource LockBadgeBrush}"
                                                     Visibility="{x:Bind LockBadgeVisibility, Mode=OneWay}">
-                                                <TextBlock Text="Lock" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                                <TextBlock Text="Lock" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                             </Border>
                                         </StackPanel>
                                     </Grid>
@@ -300,12 +452,12 @@
                                     Visibility="Collapsed"
                                     Padding="10"
                                     CornerRadius="6"
-                                    Background="#33FF6B6B"
-                                    BorderBrush="#FFFF6B6B"
+                                    Background="{ThemeResource ErrorFillBrush}"
+                                    BorderBrush="{ThemeResource ErrorStrokeBrush}"
                                     BorderThickness="1">
                                 <StackPanel Spacing="6">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FF7C7C"/>
+                                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource ErrorTextBrush}"/>
                                         <TextBlock Text="File not found"
                                                    FontSize="12"
                                                    FontWeight="SemiBold"/>
@@ -481,14 +633,14 @@
         <Grid x:Name="PreviewOverlay"
               Grid.RowSpan="4"
               Visibility="Collapsed"
-              Background="#CC000000"
+              Background="{ThemeResource OverlayScrimBrush}"
               Canvas.ZIndex="100">
             <!-- 16:9 Dialog Box -->
             <Border Width="960" Height="540"
-                    Background="#111111"
+                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                     CornerRadius="12"
                     BorderThickness="1"
-                    BorderBrush="#333333">
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -497,12 +649,12 @@
                     </Grid.RowDefinitions>
 
                     <!-- Header -->
-                    <Grid Grid.Row="0" Padding="16,12" Background="#1A1A1A" CornerRadius="12,12,0,0">
-                        <TextBlock x:Name="PreviewOverlayTitle" Text="Preview" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                    <Grid Grid.Row="0" Padding="16,12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="12,12,0,0">
+                        <TextBlock x:Name="PreviewOverlayTitle" Text="Preview" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     </Grid>
 
                     <!-- Video area -->
-                    <Grid Grid.Row="1" Background="Black">
+                    <Grid Grid.Row="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
                         <MediaPlayerElement x:Name="PreviewMediaPlayer"
                                             AreTransportControlsEnabled="False"
                                             AutoPlay="True"
@@ -512,14 +664,13 @@
 
                         <!-- Monitor Label -->
                         <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
-                                Padding="8,4" CornerRadius="4" Background="#AA000000">
-                            <TextBlock x:Name="PreviewOverlayLabel" Text="Monitor" FontSize="11" Foreground="White"/>
+                            Padding="8,4" CornerRadius="4" Background="{ThemeResource OverlayButtonBrush}">
+                            <TextBlock x:Name="PreviewOverlayLabel" Text="Monitor" FontSize="11" Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                         </Border>
 
                         <!-- Clock overlay -->
                         <Grid x:Name="PreviewOverlayClock" Visibility="Collapsed">
                             <Grid.RowDefinitions>
-                                <!-- 350 / 1080 = 32.4% from the top -->
                                 <RowDefinition Height="32.4*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="67.6*"/>
@@ -527,15 +678,15 @@
                             <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="2">
                                 <TextBlock x:Name="PreviewOverlayTime" Text="12:00" 
                                            FontSize="56" FontWeight="SemiBold" 
-                                           Foreground="White" HorizontalAlignment="Center"/>
+                                           Foreground="{ThemeResource PreviewOverlayTextBrush}" HorizontalAlignment="Center"/>
                                 <TextBlock x:Name="PreviewOverlayDate" Text="Monday, April 28" 
-                                           FontSize="16" Foreground="White" HorizontalAlignment="Center"/>
+                                           FontSize="16" Foreground="{ThemeResource PreviewOverlayTextBrush}" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
 
                     <!-- Footer with Close button -->
-                    <Grid Grid.Row="2" Padding="16" Background="#1A1A1A" CornerRadius="0,0,12,12">
+                    <Grid Grid.Row="2" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="0,0,12,12">
                         <Button Content="Close"
                                 HorizontalAlignment="Center"
                                 Padding="48,8"

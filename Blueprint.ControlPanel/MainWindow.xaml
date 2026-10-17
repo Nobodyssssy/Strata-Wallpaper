@@ -75,7 +75,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" Padding="4,4,4,0">
                         <Ellipse x:Name="EngineDot"
                                  Width="8" Height="8"
-                                 Fill="#6B7280"
+                                 Fill="{ThemeResource StatusOfflineBrush}"
                                  VerticalAlignment="Center"/>
                         <StackPanel>
                             <TextBlock x:Name="EngineStateText"

@@ -3,7 +3,8 @@
         <!-- AURA DARK -->
         <ResourceDictionary x:Key="Dark">
             <Color x:Key="SystemAccentColor">#4A90E2</Color>
-
+            <FontFamily x:Key="ThemeFontFamily">Cascadia Code</FontFamily>
+            
             <!-- Backgrounds -->
             <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#15141B"/>
             <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#15141B"/>
@@ -33,6 +34,27 @@
             <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#15141B"/>
             <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2D2C3A"/>
             <SolidColorBrush x:Key="ButtonForeground" Color="#EDECEE"/>
+            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="StatusOfflineBrush" Color="#6B7280"/>
+            <SolidColorBrush x:Key="StatusOnlineBrush" Color="#22C55E"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="#FACC15"/>
+            <SolidColorBrush x:Key="ErrorFillBrush" Color="#33FF6B6B"/>
+            <SolidColorBrush x:Key="ErrorStrokeBrush" Color="#FFFF6B6B"/>
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFFF7C7C"/>
+            <SolidColorBrush x:Key="OverlayScrimBrush" Color="#B3000000"/>
+            <SolidColorBrush x:Key="OverlayButtonBrush" Color="#AA000000"/>
+            <SolidColorBrush x:Key="TransparentBrush" Color="#00000000"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderBrush" Color="#5A5A5A"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderTextBrush" Color="#8C8C8C"/>
+            <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#D2000000"/>
+            <SolidColorBrush x:Key="PreviewOverlaySecondaryBrush" Color="#5A000000"/>
+            <SolidColorBrush x:Key="PreviewOverlayTextBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlayMutedTextBrush" Color="#B0FFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlaySubtleTextBrush" Color="#CCFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewSeparatorBrush" Color="#50FFFFFF"/>
+            <SolidColorBrush x:Key="FavoriteBrush" Color="#FACC15"/>
+            <SolidColorBrush x:Key="LockBadgeBrush" Color="#CCE72E5A"/>
+            <SolidColorBrush x:Key="LiveContentBadgeBrush" Color="#CC00C8B4"/>
             <SolidColorBrush x:Key="ComboBoxBackground" Color="#242330"/>
             <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#2D2C3A"/>
             <SolidColorBrush x:Key="ComboBoxForeground" Color="#EDECEE"/>
@@ -49,7 +71,8 @@
         <!-- AURA LIGHT -->
         <ResourceDictionary x:Key="Light">
             <Color x:Key="SystemAccentColor">#4A90E2</Color>
-
+            <FontFamily x:Key="ThemeFontFamily">Cascadia Code</FontFamily>
+            
             <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#F5F4F8"/>
             <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#EBEAEF"/>
             <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#F5F4F8"/>
@@ -75,6 +98,27 @@
             <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#EBEAEF"/>
             <SolidColorBrush x:Key="ButtonBorderBrush" Color="#DCDAE5"/>
             <SolidColorBrush x:Key="ButtonForeground" Color="#1A1921"/>
+            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="StatusOfflineBrush" Color="#6B7280"/>
+            <SolidColorBrush x:Key="StatusOnlineBrush" Color="#16A34A"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="#A16207"/>
+            <SolidColorBrush x:Key="ErrorFillBrush" Color="#33DC2626"/>
+            <SolidColorBrush x:Key="ErrorStrokeBrush" Color="#FFDC2626"/>
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB91C1C"/>
+            <SolidColorBrush x:Key="OverlayScrimBrush" Color="#66000000"/>
+            <SolidColorBrush x:Key="OverlayButtonBrush" Color="#AA000000"/>
+            <SolidColorBrush x:Key="TransparentBrush" Color="#00000000"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderBrush" Color="#D1D1D1"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderTextBrush" Color="#6E6E6E"/>
+            <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#D2000000"/>
+            <SolidColorBrush x:Key="PreviewOverlaySecondaryBrush" Color="#5A000000"/>
+            <SolidColorBrush x:Key="PreviewOverlayTextBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlayMutedTextBrush" Color="#B0FFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlaySubtleTextBrush" Color="#CCFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewSeparatorBrush" Color="#50FFFFFF"/>
+            <SolidColorBrush x:Key="FavoriteBrush" Color="#A16207"/>
+            <SolidColorBrush x:Key="LockBadgeBrush" Color="#CCD20F39"/>
+            <SolidColorBrush x:Key="LiveContentBadgeBrush" Color="#CC00897B"/>
             <SolidColorBrush x:Key="ComboBoxBackground" Color="#FFFFFF"/>
             <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#DCDAE5"/>
             <SolidColorBrush x:Key="ComboBoxForeground" Color="#1A1921"/>

@@ -67,6 +67,33 @@ public static class ThemeService
         return Schemes[0];
     }
 
+    public static void ApplyFont(Application app, bool useThemeFont)
+    {
+        // Load Roboto directly from the Assets folder, with Segoe UI as fallback
+        FontFamily targetFont = new FontFamily("ms-appx:///Assets/Roboto-Regular.ttf#Roboto, Segoe UI Variable Text");
+
+        if (useThemeFont)
+        {
+            // Look up the font from the currently active theme dictionary
+            if (app.Resources.TryGetValue("ThemeFontFamily", out var fontObj) && fontObj is FontFamily themeFont)
+            {
+                targetFont = themeFont;
+            }
+        }
+
+        // Apply globally to all controls
+        app.Resources["ContentControlThemeFontFamily"] = targetFont;
+
+        // Force the window to redraw so the font visually updates
+        if (App.MainWindow?.Content is FrameworkElement root)
+        {
+            var currentTheme = root.RequestedTheme;
+            root.RequestedTheme = ElementTheme.Light;
+            root.RequestedTheme = ElementTheme.Dark;
+            root.RequestedTheme = currentTheme;
+        }
+    }
+
     public static void Apply(Application app, AccentScheme scheme)
     {
         var dict = new ResourceDictionary();
@@ -133,6 +160,11 @@ public static class ThemeService
             ["AccentTextFillColorPrimaryBrush"] = new SolidColorBrush(s.AccentHover),
             ["AccentTextFillColorSecondaryBrush"] = new SolidColorBrush(s.AccentHover),
             ["AccentTextFillColorTertiaryBrush"] = new SolidColorBrush(s.AccentPressed),
+            ["TextOnAccentFillColorPrimaryBrush"] = new SolidColorBrush(
+                s.Accent.R > 180 && s.Accent.G > 180 && s.Accent.B > 180
+                    ? Color.FromArgb(255, 30, 30, 30)
+                    : Color.FromArgb(255, 255, 255, 255)),
+            ["TransparentBrush"] = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
 
             // Force specific controls to respect the accent
             ["RadioButtonForegroundChecked"] = new SolidColorBrush(s.Accent),

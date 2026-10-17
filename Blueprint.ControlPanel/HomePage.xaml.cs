@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.UI;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,6 +13,8 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 
@@ -30,7 +33,11 @@ public sealed partial class HomePage : Page
     private bool _engineOnline = false;
     private bool _autoStart = false;
     private DispatcherTimer? _pollTimer;
+    private DispatcherTimer? _previewStatusTimer;
     private DispatcherTimer? _wallThumbTimer;
+    private bool _previewStatusRequestBusy;
+    private string? _lastAppliedPreviewState;
+    private readonly List<MediaPlayer> _previewPlayers = new();
     private int _collectionsTab = 0;   // 0 = favorites, 1 = recent
     private readonly Random _rng = new();
 
@@ -78,6 +85,7 @@ public sealed partial class HomePage : Page
         SafeRun(RefreshAsync);
         StartTipRotator();
         StartPollTimer();
+        StartPreviewStatusPolling();
         StartWallThumbRotator();
         UpdateSettingsCard();
     }
@@ -87,7 +95,86 @@ public sealed partial class HomePage : Page
         _cts.Cancel();
         _tipTimer?.Stop();
         _pollTimer?.Stop();
+        _previewStatusTimer?.Stop();
         _wallThumbTimer?.Stop();
+        _previewStatusTimer = null;
+
+        foreach (var player in _previewPlayers)
+        {
+            try
+            {
+                player.Pause();
+                player.Dispose();
+            }
+            catch { }
+        }
+        _previewPlayers.Clear();
+    }
+
+    private void StartPreviewStatusPolling()
+    {
+        _previewStatusTimer?.Stop();
+        _previewStatusTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _previewStatusTimer.Tick += (_, __) =>
+            SafeRun(SynchronizePreviewStatusAsync);
+        _previewStatusTimer.Start();
+
+        // Do not wait for the first timer tick when Home is entered.
+        SafeRun(SynchronizePreviewStatusAsync);
+    }
+
+    private async Task SynchronizePreviewStatusAsync()
+    {
+        if (_cts.IsCancellationRequested || _previewStatusRequestBusy)
+            return;
+
+        _previewStatusRequestBusy = true;
+        try
+        {
+            var response = await _client.SendAsync("get_status", ct: _cts.Token);
+            if (_cts.IsCancellationRequested || response == null)
+                return;
+
+            var body = response["body"];
+            string? state = body?["state"]?.GetValue<string>()
+                ?? body?["status"]?.GetValue<string>()
+                ?? response["state"]?.GetValue<string>()
+                ?? response["status"]?.GetValue<string>();
+
+            if (state is not ("running" or "paused")
+                || state == _lastAppliedPreviewState)
+            {
+                return;
+            }
+
+            _lastAppliedPreviewState = state;
+            ApplyPreviewPlaybackState(state);
+        }
+        finally
+        {
+            _previewStatusRequestBusy = false;
+        }
+    }
+
+    private void ApplyPreviewPlaybackState(string state)
+    {
+        foreach (var player in _previewPlayers)
+        {
+            try
+            {
+                if (state == "paused")
+                    player.Pause();
+                else
+                    player.Play();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[HomePage] preview state '{state}': {ex.Message}");
+            }
+        }
     }
 
     // ============================================================
@@ -177,8 +264,7 @@ public sealed partial class HomePage : Page
     private void ApplyOffline()
     {
         _engineOnline = false;
-        StatusDot.Fill = new SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 107, 114, 128));
+        StatusDot.Fill = GetThemeBrush("StatusOfflineBrush");
         StatusLabel.Text = "Engine offline";
         StatusSubtitle.Text = "Start the engine to display wallpapers.";
 
@@ -256,8 +342,7 @@ public sealed partial class HomePage : Page
     private void ApplyOnline(JsonNode? body)
     {
         _engineOnline = true;
-        StatusDot.Fill = new SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 34, 197, 94));
+        StatusDot.Fill = GetThemeBrush("StatusOnlineBrush");
         StatusLabel.Text = "Running";
         StatusSubtitle.Text = "Strata Wallpaper Engine is active.";
 
@@ -413,6 +498,16 @@ public sealed partial class HomePage : Page
     {
         if (HeroPreviewsHost == null) return;
 
+        foreach (var player in _previewPlayers)
+        {
+            try
+            {
+                player.Pause();
+                player.Dispose();
+            }
+            catch { }
+        }
+        _previewPlayers.Clear();
         HeroPreviewsHost.Children.Clear();
         HeroPreviewsHost.ColumnDefinitions.Clear();
 
@@ -486,19 +581,30 @@ public sealed partial class HomePage : Page
     {
         var host = new Grid
         {
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, 0))
+            Background = GetThemeBrush("SolidBackgroundFillColorBaseBrush")
         };
 
         if (!string.IsNullOrEmpty(path) && File.Exists(path))
         {
-            var img = new Image
+            var player = new MediaPlayer
             {
+                IsLoopingEnabled = true,
+                Source = MediaSource.CreateFromUri(new Uri(path))
+            };
+            var preview = new MediaPlayerElement
+            {
+                AreTransportControlsEnabled = false,
+                AutoPlay = false,
                 Stretch = Stretch.UniformToFill,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch
             };
-            host.Children.Add(img);
-            _ = LoadHeroThumbAsync(img, path);
+            preview.SetMediaPlayer(player);
+            _previewPlayers.Add(player);
+            host.Children.Add(preview);
+
+            if (_lastAppliedPreviewState == "running")
+                player.Play();
         }
         else
         {
@@ -513,16 +619,14 @@ public sealed partial class HomePage : Page
             {
                 Glyph = "\uE8B7",
                 FontSize = 40,
-                Foreground = new SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 90, 90, 90))
+                Foreground = GetThemeBrush("PreviewPlaceholderBrush")
             });
             placeholder.Children.Add(new TextBlock
             {
                 Text = "No wallpaper assigned",
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Foreground = new SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 140, 140, 140))
+                Foreground = GetThemeBrush("PreviewPlaceholderTextBrush")
             });
             host.Children.Add(placeholder);
         }
@@ -541,12 +645,12 @@ public sealed partial class HomePage : Page
         lgb.GradientStops.Add(new GradientStop
         {
             Offset = 0.0,
-            Color = Windows.UI.Color.FromArgb(0, 0, 0, 0)
+            Color = GetThemeColor("TransparentBrush")
         });
         lgb.GradientStops.Add(new GradientStop
         {
             Offset = 1.0,
-            Color = Windows.UI.Color.FromArgb(210, 0, 0, 0)
+            Color = GetThemeColor("PreviewOverlayBrush")
         });
         gradient.Background = lgb;
         host.Children.Add(gradient);
@@ -558,8 +662,7 @@ public sealed partial class HomePage : Page
             Margin = new Thickness(18, 0, 0, 16),
             Padding = new Thickness(10, 8, 10, 8),
             CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(90, 0, 0, 0))
+            Background = GetThemeBrush("PreviewOverlaySecondaryBrush")
         };
 
         var infoRow = new StackPanel
@@ -572,8 +675,7 @@ public sealed partial class HomePage : Page
             Glyph = "\uE7F8",
             FontSize = 22,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 255, 255, 255))
+            Foreground = GetThemeBrush("PreviewOverlayTextBrush")
         });
 
         var textStack = new StackPanel { Spacing = 1 };
@@ -581,8 +683,7 @@ public sealed partial class HomePage : Page
         {
             Text = "Current Wallpaper",
             FontSize = 10,
-            Foreground = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(176, 255, 255, 255))
+            Foreground = GetThemeBrush("PreviewOverlayMutedTextBrush")
         });
 
         string filename = !string.IsNullOrEmpty(path)
@@ -593,8 +694,7 @@ public sealed partial class HomePage : Page
             Text = filename,
             FontSize = 13,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+            Foreground = GetThemeBrush("PreviewOverlayTextBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = totalCells > 1 ? 200 : 380
         });
@@ -603,8 +703,7 @@ public sealed partial class HomePage : Page
         {
             Text = infoLabel,
             FontSize = 11,
-            Foreground = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(204, 255, 255, 255))
+            Foreground = GetThemeBrush("PreviewOverlaySubtleTextBrush")
         });
 
         infoRow.Children.Add(textStack);
@@ -617,8 +716,7 @@ public sealed partial class HomePage : Page
             {
                 Width = 1,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Background = new SolidColorBrush(
-                    Windows.UI.Color.FromArgb(80, 255, 255, 255))
+                Background = GetThemeBrush("PreviewSeparatorBrush")
             };
             host.Children.Add(sep);
         }
@@ -833,7 +931,7 @@ public sealed partial class HomePage : Page
             HorizontalContentAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(6),
             MinHeight = 76,
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)),
+            Background = GetThemeBrush("TransparentBrush"),
             BorderThickness = new Thickness(0)
         };
         btn.Tag = path;
@@ -850,7 +948,7 @@ public sealed partial class HomePage : Page
             Width = 132,
             Height = 74,
             CornerRadius = new CornerRadius(6),
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 36, 36, 36))
+            Background = GetThemeBrush("CardBackgroundFillColorSecondaryBrush")
         };
         var img = new Image { Stretch = Stretch.UniformToFill };
         thumbBorder.Child = img;
@@ -875,8 +973,7 @@ public sealed partial class HomePage : Page
             {
                 Glyph = "\uE735",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 250, 204, 21))
+                Foreground = GetThemeBrush("FavoriteBrush")
             });
         }
 
@@ -1014,10 +1111,10 @@ public sealed partial class HomePage : Page
          {
              string? enginePath = await Task.Run(() =>
              {
-                 string? p = UiSettings.Current.EnginePath;
-                 if (string.IsNullOrEmpty(p) || !File.Exists(p))
-                     p = FindEnginePath();
-                 return p;
+                  // Always resolve from the build tree.  UiSettings may
+                  // contain a path to an older configuration and starting it
+                  // would be swallowed by the engine's single-instance guard.
+                  return EngineLauncher.FindEnginePath();
              });
 
              if (enginePath == null)
@@ -1043,10 +1140,11 @@ public sealed partial class HomePage : Page
              {
                  UiSettings.Current.EnginePath = enginePath;
                  UiSettings.Current.Save();
-                 LaunchEngine(enginePath);
+                  if (!EngineLauncher.StartEngine(enginePath))
+                      throw new InvalidOperationException("The engine executable could not be started.");
              });
 
-             await WaitForEngineAsync();
+          await WaitForEngineAsync(enginePath);
          }
          catch (Exception ex)
          {
@@ -1054,104 +1152,23 @@ public sealed partial class HomePage : Page
          }
      });
 
-    private static void LaunchEngine(string path)
-    {
-        Process.Start(new ProcessStartInfo(path)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = System.IO.Path.GetDirectoryName(path) ?? ""
-        });
-    }
-
-    private async Task WaitForEngineAsync()
+    private async Task WaitForEngineAsync(string expectedPath)
     {
         for (int i = 0; i < 20 && !_cts.IsCancellationRequested; i++)
         {
             await Task.Delay(300, _cts.Token);
             var resp = await _client.SendAsync("ping", ct: _cts.Token);
             if (_cts.IsCancellationRequested) return;
-            if (resp != null)
+            var runningPath = EngineLauncher.GetRunningEnginePath();
+            Debug.WriteLine($"[HomePage] engine verification PID/path={runningPath}");
+            if (resp != null && runningPath != null && string.Equals(
+                Path.GetFullPath(runningPath), Path.GetFullPath(expectedPath),
+                StringComparison.OrdinalIgnoreCase))
             {
                 await RefreshAsync();
                 return;
             }
         }
-    }
-
-    private static string? FindEnginePath()
-    {
-        var exeNames = new[]
-        {
-            "StrataWallpaper.exe",
-            "Blueprintengine.exe",
-            "BlueprintEngine.exe",
-            "Blueprint.exe"
-        };
-
-        var subpaths = new[]
-        {
-            "",
-            "x64\\Release",
-            "x64\\Debug",
-            "Release",
-            "Debug",
-            "build",
-            "bin",
-            "bin\\x64\\Release",
-            "bin\\x64\\Debug"
-        };
-
-        foreach (var name in exeNames)
-        {
-            var p = Path.Combine(AppContext.BaseDirectory, name);
-            if (File.Exists(p)) return p;
-        }
-
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        for (int i = 0; i < 12 && dir != null; i++, dir = dir.Parent)
-        {
-            foreach (var name in exeNames)
-            {
-                var p = Path.Combine(dir.FullName, name);
-                if (File.Exists(p)) return p;
-            }
-
-            foreach (var sub in subpaths)
-            {
-                if (string.IsNullOrEmpty(sub)) continue;
-                var probe = Path.Combine(dir.FullName, sub);
-                if (!Directory.Exists(probe)) continue;
-
-                foreach (var name in exeNames)
-                {
-                    var p = Path.Combine(probe, name);
-                    if (File.Exists(p)) return p;
-                }
-            }
-
-            foreach (var project in new[] { "Blueprintengine", "BlueprintEngine", "Blueprint" })
-            {
-                var projectRoot = Path.Combine(dir.FullName, project);
-                if (!Directory.Exists(projectRoot)) continue;
-
-                foreach (var sub in subpaths)
-                {
-                    var probe = string.IsNullOrEmpty(sub)
-                        ? projectRoot
-                        : Path.Combine(projectRoot, sub);
-                    if (!Directory.Exists(probe)) continue;
-
-                    foreach (var name in exeNames)
-                    {
-                        var p = Path.Combine(probe, name);
-                        if (File.Exists(p)) return p;
-                    }
-                }
-            }
-        }
-
-        return null;
     }
 
     private async Task ShowMessage(string title, string content)
@@ -1189,8 +1206,18 @@ public sealed partial class HomePage : Page
         {
             dots[i].Fill = new SolidColorBrush(
                 i == _tipIndex
-                    ? Windows.UI.Color.FromArgb(255, 74, 144, 226)
-                    : Windows.UI.Color.FromArgb(255, 68, 68, 68));
+                    ? GetThemeColor("AccentFillColorDefaultBrush")
+                    : GetThemeColor("ControlStrokeColorDefaultBrush"));
         }
     }
+
+    private static SolidColorBrush GetThemeBrush(string key)
+    {
+        return Application.Current.Resources.TryGetValue(key, out var value)
+            && value is SolidColorBrush brush
+            ? brush
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    }
+
+    private static Windows.UI.Color GetThemeColor(string key) => GetThemeBrush(key).Color;
 }

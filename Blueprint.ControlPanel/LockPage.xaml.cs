@@ -43,6 +43,7 @@ public sealed partial class LockPage : Page
 
     // Cached path actually used by the preview card
     private string _lockWallpaperPath = "";
+    private Windows.Media.Playback.MediaPlayer? _previewPlayer;
 
     // Live preview clock
     private DispatcherTimer? _clockTimer;
@@ -204,7 +205,27 @@ public sealed partial class LockPage : Page
         }
 
         var dnResp = await _client.SendAsync("get_lock_daynight", ct: _cts.Token);
-        if (!_cts.IsCancellationRequested && dnResp != null)
+        if (dnResp == null)
+        {
+            // Engine is offline. Load Day/Night directly from settings.ini
+            string ini = GetSettingsPath();
+            var sb = new System.Text.StringBuilder(256);
+
+            GetPrivateProfileString("LockDayNight", "Enabled", "0", sb, sb.Capacity, ini);
+            LockDnEnabledToggle.IsOn = sb.ToString() == "1";
+
+            GetPrivateProfileString("LockDayNight", "DayVideo", "", sb, sb.Capacity, ini);
+            _lockDnDayVideo = sb.ToString();
+
+            GetPrivateProfileString("LockDayNight", "NightVideo", "", sb, sb.Capacity, ini);
+            _lockDnNightVideo = sb.ToString();
+            LockDnDayVideoText.Text = ShortPath(_lockDnDayVideo);
+            LockDnNightVideoText.Text = ShortPath(_lockDnNightVideo);
+
+            LockDnTodayText.Text = GetOfflinePrayerTimes();
+            UpdateLockPanels();
+        }
+        else if (!_cts.IsCancellationRequested && dnResp != null)
         {
             var dn = dnResp["body"];
             if (dn != null)
@@ -904,15 +925,120 @@ public sealed partial class LockPage : Page
     //  Preview now
     // ============================================================
     private void OnLockPreviewNowClick(object sender, RoutedEventArgs e)
-        => SafeRun(async () =>
-        {
-            await CommitPendingPasswordIfAny();
-            await _client.SendAsync("lock_now", ct: _cts.Token);
-        });
+      => SafeRun(async () =>
+      {
+          await CommitPendingPasswordIfAny();
 
-    // ============================================================
-    //  Panel visibility
-    // ============================================================
+          // Read directly from INI to ensure we have the absolute latest paths
+          string iniPath = GetSettingsPath();
+          var sb = new System.Text.StringBuilder(512);
+          GetPrivateProfileString("LockDayNight", "DayVideo", "", sb, sb.Capacity, iniPath);
+          string dayVid = sb.ToString();
+          GetPrivateProfileString("LockDayNight", "NightVideo", "", sb, sb.Capacity, iniPath);
+          string nightVid = sb.ToString();
+
+          var syncBody = new JsonObject
+          {
+              ["enabled"] = LockDnEnabledToggle.IsOn,
+              ["mode"] = GetLockDnMode(),
+              ["day_video"] = dayVid,
+              ["night_video"] = nightVid
+          };
+          await _client.SendAsync("set_lock_daynight", syncBody, _cts.Token);
+
+          // Ask engine to show the lock screen
+          var resp = await _client.SendAsync("lock_now", ct: _cts.Token);
+
+          // If the engine is running and succeeded, we are done. Let the engine handle it.
+          if (resp != null)
+          {
+              return;
+          }
+
+          // Engine is offline. Fallback to local preview.
+          string pathToPreview = _lockWallpaperPath;
+
+          if (LockDnEnabledToggle.IsOn && !string.IsNullOrEmpty(_lockDnDayVideo))
+          {
+              pathToPreview = _lockDnDayVideo;
+          }
+
+          if (!string.IsNullOrEmpty(pathToPreview) && File.Exists(pathToPreview))
+          {
+              await ShowLocalPreviewAsync(pathToPreview);
+          }
+          else
+          {
+              await ShowLocalDialog("Cannot Preview", "No wallpaper is configured to preview.");
+          }
+      });
+
+    private async Task ShowLocalPreviewAsync(string path)
+    {
+        _previewPlayer?.Pause();
+        _previewPlayer?.Dispose();
+
+        var dialog = new ContentDialog
+        {
+            Title = "Lock Screen Preview",
+            CloseButtonText = "Close",
+            XamlRoot = this.XamlRoot
+        };
+
+        _previewPlayer = new Windows.Media.Playback.MediaPlayer();
+        var file = await StorageFile.GetFileFromPathAsync(path);
+        _previewPlayer.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(file);
+        _previewPlayer.IsLoopingEnabled = true;
+        _previewPlayer.Play();
+
+        var grid = new Grid
+        {
+            Width = 960,
+            Height = 540,
+            Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"]
+        };
+
+        var mpe = new MediaPlayerElement
+        {
+            Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+            AreTransportControlsEnabled = false
+        };
+        mpe.SetMediaPlayer(_previewPlayer);
+        grid.Children.Add(mpe);
+
+        var clockOverlay = new Grid();
+        clockOverlay.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        clockOverlay.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        clockOverlay.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.5, GridUnitType.Star) });
+
+        var clockPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Spacing = 4 };
+        var previewTextBrush = (Brush)Application.Current.Resources["PreviewOverlayTextBrush"];
+        clockPanel.Children.Add(new TextBlock { Text = DateTime.Now.ToString("HH:mm"), FontSize = 64, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = previewTextBrush, HorizontalAlignment = HorizontalAlignment.Center });
+        clockPanel.Children.Add(new TextBlock { Text = DateTime.Now.ToString("dddd, MMMM d"), FontSize = 20, Foreground = previewTextBrush, HorizontalAlignment = HorizontalAlignment.Center });
+
+        Grid.SetRow(clockPanel, 1);
+        clockOverlay.Children.Add(clockPanel);
+        grid.Children.Add(clockOverlay);
+
+        dialog.Content = grid;
+        await dialog.ShowAsync();
+
+        _previewPlayer.Pause();
+        _previewPlayer.Dispose();
+        _previewPlayer = null;
+    }
+
+    private async Task ShowLocalDialog(string title, string content)
+    {
+        await new ContentDialog
+        {
+            Title = title,
+            Content = content,
+            CloseButtonText = "OK",
+            XamlRoot = this.XamlRoot
+        }.ShowAsync();
+    }
+
     private void UpdateLockPanels()
     {
         bool pw = LockModePassword.IsChecked == true;
@@ -942,5 +1068,28 @@ public sealed partial class LockPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
         LockDnPrayerPanel.Visibility = mode == "prayer"
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+    private string GetOfflinePrayerTimes()
+    {
+        try
+        {
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blueprint", "prayer_times.json");
+            if (!File.Exists(path)) return "Today's prayer times not yet available.";
+
+            var json = File.ReadAllText(path);
+            var data = System.Text.Json.JsonDocument.Parse(json);
+            var days = data.RootElement.GetProperty("days");
+
+            string todayDate = DateTime.Now.ToString("dd-MM-yyyy");
+            foreach (var day in days.EnumerateArray())
+            {
+                if (day.GetProperty("date").GetString() == todayDate)
+                {
+                    return $"Today ({todayDate})  ·  Sunrise {day.GetProperty("sunrise").GetString()}  ·  Maghrib {day.GetProperty("maghrib").GetString()}";
+                }
+            }
+        }
+        catch { }
+        return "Today's prayer times not yet available.";
     }
 }

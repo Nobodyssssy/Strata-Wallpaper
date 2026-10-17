@@ -60,7 +60,7 @@ static void ReleaseAllWallpapers();
 static void StartLockOverlay();
 static void StopLockOverlay();
 static void DismissLockOverlay();
-static bool GetLockVideoPath(std::string& out, int monitorIdx = -1);
+static bool GetLockVideoPath(std::string& out, int monitorIdx);
 
 static bool LoadPrayerCache();
 static void SavePrayerCache();
@@ -167,8 +167,11 @@ struct PrayerCache {
     std::vector<PrayerDay> days;
 };
 static PrayerCache g_prayerCache;
+static std::mutex g_prayerMutex;
 static std::atomic<bool> g_prayerFetchInProgress{ false };
 static std::atomic<bool> g_prayerFetchDone{ false };
+static std::atomic<bool> g_prayerFetchCancel{ false };
+static std::thread g_prayerFetchThread;
 
 static constexpr ULONGLONG kPrayerCacheTtlSeconds = 7ULL * 24ULL * 3600ULL;
 
@@ -377,6 +380,11 @@ static void SaveLibraryToDisk() {
     }
     fputs("  ]\n}\n", f);
     fclose(f);
+}
+
+static PrayerCache GetPrayerCacheSnapshot() {
+    std::lock_guard<std::mutex> lock(g_prayerMutex);
+    return g_prayerCache;
 }
 
 static int RescanLibrary() {
@@ -749,6 +757,20 @@ static void UpdatePauseState() {
         }
         g_monitorPaused[wp.hwnd] = shouldPauseThis;
     }
+}
+
+static const char* GetPauseReason() {
+    if (g_manualPaused.load()) return "manual";
+    if (g_lockActive) return "lock_overlay";
+    if (g_sessionLocked.load()) return "session_locked";
+    if (g_idlePauseSeconds > 0 && GetIdleSeconds() >= g_idlePauseSeconds)
+        return "idle";
+    if (IsOnBatteryWithSaver()) return "battery_saver";
+    if (IsRemoteSession()) return "remote_session";
+    for (const auto& entry : g_monitorPaused) {
+        if (entry.second) return "active_monitor";
+    }
+    return "none";
 }
 
 // =====================================================================
@@ -1170,6 +1192,8 @@ static std::string HttpGet(const std::wstring& host, const std::wstring& path) {
         return result;
     }
 
+    WinHttpSetTimeouts(hRequest, 5000, 5000, 5000, 5000);
+
     if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
         !WinHttpReceiveResponse(hRequest, nullptr)) {
@@ -1259,7 +1283,10 @@ static bool LoadPrayerCache() {
                 c.days.push_back(pd);
             }
         }
-        g_prayerCache = c;
+        {
+            std::lock_guard<std::mutex> lock(g_prayerMutex);
+            g_prayerCache = c;
+        }
         std::cout << "[PRAYER] cache loaded: " << c.days.size()
             << " day(s), fetched_at=" << c.fetched_at << "\n";
         return !c.days.empty();
@@ -1274,13 +1301,19 @@ static void SavePrayerCache() {
     std::string path = GetPrayerCachePath();
     if (path.empty()) return;
 
+    PrayerCache cache;
+    {
+        std::lock_guard<std::mutex> lock(g_prayerMutex);
+        cache = g_prayerCache;
+    }
+
     json j;
-    j["fetched_at"] = (long long)g_prayerCache.fetched_at;
-    j["method"] = g_prayerCache.method;
-    j["latitude"] = g_prayerCache.latitude;
-    j["longitude"] = g_prayerCache.longitude;
+    j["fetched_at"] = (long long)cache.fetched_at;
+    j["method"] = cache.method;
+    j["latitude"] = cache.latitude;
+    j["longitude"] = cache.longitude;
     j["days"] = json::array();
-    for (auto& d : g_prayerCache.days) {
+    for (auto& d : cache.days) {
         json e;
         e["date"] = d.date;
         e["sunrise"] = d.sunrise;
@@ -1296,17 +1329,19 @@ static void SavePrayerCache() {
 }
 
 // Background thread body. Posts WM_APP_PRAYER_FETCH_DONE when finished.
-static void PrayerFetchThreadProc() {
+static void PrayerFetchThreadProc(DayNightConfig config) {
     PrayerCache fresh;
     fresh.fetched_at = time(nullptr);
-    fresh.method = g_dayNight.prayerMethod;
-    fresh.latitude = g_dayNight.latitude;
-    fresh.longitude = g_dayNight.longitude;
+    fresh.method = config.prayerMethod;
+    fresh.latitude = config.latitude;
+    fresh.longitude = config.longitude;
 
     int okCount = 0;
     for (int i = 0; i < 7; i++) {
+        if (g_prayerFetchCancel.load()) break;
         std::string label = DateStringOffsetDays(i);
         std::string sunrise, maghrib;
+        if (g_prayerFetchCancel.load()) break;
         if (FetchOneDay(label, fresh.latitude, fresh.longitude,
             fresh.method, sunrise, maghrib)) {
             PrayerDay pd;
@@ -1321,8 +1356,11 @@ static void PrayerFetchThreadProc() {
         }
     }
 
-    if (okCount > 0) {
-        g_prayerCache = fresh;
+    if (okCount > 0 && !g_prayerFetchCancel.load()) {
+        {
+            std::lock_guard<std::mutex> lock(g_prayerMutex);
+            g_prayerCache = fresh;
+        }
         SavePrayerCache();
         std::cout << "[PRAYER] fetch OK: " << okCount << "/7 day(s)\n";
         g_prayerFetchDone.store(true);
@@ -1332,19 +1370,30 @@ static void PrayerFetchThreadProc() {
     }
     g_prayerFetchInProgress.store(false);
 
-    if (g_hHiddenWnd) {
+    if (!g_prayerFetchCancel.load() && g_hHiddenWnd) {
         PostMessageW(g_hHiddenWnd, WM_APP_PRAYER_FETCH_DONE, 0, 0);
     }
 }
 
 static void FetchPrayerTimesAsync() {
     if (g_prayerFetchInProgress.exchange(true)) return;
-    std::thread(PrayerFetchThreadProc).detach();
+    if (g_prayerFetchThread.joinable())
+        g_prayerFetchThread.join();
+    g_prayerFetchCancel.store(false);
+    DayNightConfig config = g_dayNight;
+    g_prayerFetchThread = std::thread(PrayerFetchThreadProc, std::move(config));
+}
+
+static void StopPrayerFetch() {
+    g_prayerFetchCancel.store(true);
+    if (g_prayerFetchThread.joinable())
+        g_prayerFetchThread.join();
 }
 
 static bool GetPrayerTimesForToday(std::string& sunrise, std::string& maghrib) {
     std::string today = TodayDateString();
-    for (auto& d : g_prayerCache.days) {
+    PrayerCache cache = GetPrayerCacheSnapshot();
+    for (auto& d : cache.days) {
         if (d.date == today) {
             sunrise = d.sunrise;
             maghrib = d.maghrib;
@@ -1600,13 +1649,26 @@ static void UpdateSlideshow() {
     }
     if (g_shuffleMode == "off") g_nextPlaylistIndex++;
 }
+static void RefreshLockOverlayVideo() {
+    if (!g_lockActive) return;
+    for (auto& lo : g_lockOverlays) {
+        std::string path;
+        if (GetLockVideoPath(path, lo.index)) {
+            std::cout << "[LOCK ] Overlay loading video: " << path << "\n";
+            const char* cmd[] = { "loadfile", path.c_str(), nullptr };
+            g_mpv.command(lo.player, cmd);
+        }
+        else {
+            std::cout << "[LOCK ] Overlay failed to resolve any video.\n";
+        }
+    }
+}
 
 static void UpdateDayNight() {
     if (!g_dayNight.enabled) return;
 
     ULONGLONG now = GetTickCount64();
 
-    // For sunrise mode (and as fallback in prayer mode), refresh solar math hourly.
     if (g_dayNight.mode == "sunrise" || g_dayNight.mode == "prayer") {
         if (g_cachedSunrise < 0 || (now - g_lastSunCalcTick) >= kSunCalcIntervalMs) {
             CalculateSunTimes(g_dayNight.latitude, g_dayNight.longitude,
@@ -1622,12 +1684,17 @@ static void UpdateDayNight() {
     std::cout << "[DAYNIGHT] mode=" << g_dayNight.mode
         << " transition to " << (newIsDay ? "DAY" : "NIGHT") << "\n";
 
+    // 1. Update Desktop Wallpapers
     for (auto& wp : g_wallpapers) {
-        if (wp.hasOverride) continue;
+        wp.hasOverride = false;
         std::string path = newIsDay ? g_dayNight.dayVideo : g_dayNight.nightVideo;
         if (!FileExists(path)) continue;
         SwitchVideoOnMonitor(wp, path);
     }
+
+    // 2. Update Lock Screen Overlay if it is currently visible.
+    //    Lock D/N video priority is resolved inside GetLockVideoPath.
+    RefreshLockOverlayVideo();
 }
 // =====================================================================
 // Lock overlay implementation
@@ -1815,55 +1882,53 @@ static void RefreshLockPasswordOverlays() {
 }
 
 static bool GetLockVideoPath(std::string& out, int monitorIdx) {
-    // Priority 0a: per-monitor lock override, if one is set for this
-    // monitor. Falls through to the global lock override, then to the
-    // Day/Night chain, then to black.
-    if (monitorIdx >= 0) {
-        auto it = g_lockMonitorWallpaperPaths.find(monitorIdx);
-        if (it != g_lockMonitorWallpaperPaths.end()
-            && !it->second.empty() && FileExists(it->second)) {
-            out = it->second;
-            return true;
+    // BULLETPROOF FIX: Force reload from INI right now, ignoring IPC memory entirely.
+    DayNightConfig localDn = LoadLockDayNightConfig();
+
+    bool isDay = true;
+    if (localDn.enabled) isDay = IsCurrentlyDayFor(localDn);
+    else if (g_dayNight.enabled) isDay = g_dayNight.isDay;
+
+    std::cout << "[LOCK TRACE] Reading from INI directly. Enabled=" << localDn.enabled
+        << " Day='" << localDn.dayVideo << "' Night='" << localDn.nightVideo << "'\n";
+
+    // 1. Check Lock Screen Day/Night settings first
+    if (localDn.enabled) {
+        std::string p = isDay ? localDn.dayVideo : localDn.nightVideo;
+        if (FileExists(p)) {
+            std::cout << "[LOCK TRACE] -> Found Lock D/N video.\n";
+            out = p; return true;
+        }
+        else {
+            std::cout << "[LOCK TRACE] -> Lock D/N file missing or empty.\n";
         }
     }
 
-    // Priority 0b: the explicit global lock wallpaper override set via
-    // set_lock_wallpaper. This must come before Day/Night, otherwise
-    // a user with a Day/Night schedule set would never see their
-    // chosen lock wallpaper.
-    if (!g_lockWallpaperPath.empty() && FileExists(g_lockWallpaperPath)) {
-        out = g_lockWallpaperPath;
-        return true;
-    }
-
-    bool isDay;
-    if (g_lockDayNight.enabled) {
-        isDay = IsCurrentlyDayFor(g_lockDayNight);
-    }
-    else if (g_dayNight.enabled) {
-        isDay = g_dayNight.isDay;
-    }
-    else {
-        isDay = true;
-    }
-
-    // Priority 1: lock's own day/night scheduler
-    if (g_lockDayNight.enabled) {
-        std::string p = isDay ? g_lockDayNight.dayVideo : g_lockDayNight.nightVideo;
-        if (FileExists(p)) { out = p; return true; }
-    }
-
-    // Priority 2: desktop day/night videos (opt-in via "use Day/Night videos")
-    if (g_lockUseDayNightVideos) {
+    // 2. Check Desktop Day/Night settings (if allowed)
+    if (g_dayNight.enabled && g_lockUseDayNightVideos) {
         std::string p = isDay ? g_dayNight.dayVideo : g_dayNight.nightVideo;
-        if (FileExists(p)) { out = p; return true; }
+        if (FileExists(p)) {
+            std::cout << "[LOCK TRACE] -> Found Desktop D/N video.\n";
+            out = p; return true;
+        }
     }
 
-    // Priority 3: lock's static day/night videos
-    std::string p2 = isDay ? g_lockDayVideo : g_lockNightVideo;
-    if (FileExists(p2)) { out = p2; return true; }
+    // 3. Check Per-Monitor static lock wallpaper
+    if (monitorIdx >= 0) {
+        auto it = g_lockMonitorWallpaperPaths.find(monitorIdx);
+        if (it != g_lockMonitorWallpaperPaths.end() && !it->second.empty() && FileExists(it->second)) {
+            std::cout << "[LOCK TRACE] -> Found per-monitor static wallpaper.\n";
+            out = it->second; return true;
+        }
+    }
 
-    // No assignment anywhere — black background.
+    // 4. Check Global static lock wallpaper
+    if (!g_lockWallpaperPath.empty() && FileExists(g_lockWallpaperPath)) {
+        std::cout << "[LOCK TRACE] -> Found global static wallpaper.\n";
+        out = g_lockWallpaperPath; return true;
+    }
+
+    std::cout << "[LOCK TRACE] -> No lock wallpaper found at all.\n";
     return false;
 }
 
@@ -2226,8 +2291,12 @@ static BOOL CALLBACK LockMonitorEnumProc(HMONITOR hMonitor, HDC, LPRECT, LPARAM 
 
     std::string path;
     if (GetLockVideoPath(path, thisIndex)) {
+        std::cout << "[LOCK ] Overlay loading video: " << path << "\n";
         const char* cmd[] = { "loadfile", path.c_str(), nullptr };
         g_mpv.command(player, cmd);
+    }
+    else {
+        std::cout << "[LOCK ] Overlay failed to resolve any video.\n";
     }
 
     // Attach the clock via osd-overlay.
@@ -2258,6 +2327,15 @@ static void StartLockOverlay() {
     g_lockActive = true;
     g_lockStartedAt = GetTickCount64();
     g_lockPasswordPromptVisible = false;
+    g_lockTypedPassword.clear();
+    g_lockPromptMessage.clear();
+
+    // FORCE RELOAD from INI right before locking
+    g_lockDayNight = LoadLockDayNightConfig();
+    std::cout << "[LOCK ] --- STARTING LOCK OVERLAY ---\n";
+    std::cout << "[LOCK ] Loaded from INI -> enabled=" << g_lockDayNight.enabled
+        << " DayVideo='" << g_lockDayNight.dayVideo << "'"
+        << " NightVideo='" << g_lockDayNight.nightVideo << "'\n";
     g_lockTypedPassword.clear();
     g_lockPromptMessage.clear();
 
@@ -2424,6 +2502,17 @@ static void ReloadSettingsFromDisk() {
 }
 
 static void LaunchControlPanel() {
+    // Prefer signaling an existing panel process to show itself instead
+    // of spawning a second process. The WinUI panel must call AppWindow.Show().
+    HANDLE panelEvent = OpenEventW(EVENT_MODIFY_STATE, FALSE,
+        L"Local\\StrataWallpaper_Panel_Show");
+    if (panelEvent != NULL) {
+        SetEvent(panelEvent);
+        CloseHandle(panelEvent);
+        std::cout << "[TRAY  ] signaled control panel\n";
+        return;
+    }
+
     wchar_t exePath[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
     std::wstring dir(exePath);
@@ -3086,11 +3175,12 @@ static std::string HandleIpcCommand(const std::string& raw) {
         }
 
         if (type == "get_status") {
+            const char* pauseReason = GetPauseReason();
             json body;
-            body["state"] = g_manualPaused.load() ? "paused" : "running";
-            body["paused"] = g_manualPaused.load();
+            body["state"] = std::string(pauseReason) == "none" ? "running" : "paused";
+            body["paused"] = std::string(pauseReason) != "none";
             body["monitors"] = (int)g_wallpapers.size();
-            body["pause_reason"] = nullptr;
+            body["pause_reason"] = pauseReason;
             body["lock_overlay_active"] = g_lockActive;
             if (!g_wallpapers.empty())
                 body["wallpaper"] = g_wallpapers[0].currentVideoPath;
@@ -3694,12 +3784,13 @@ static std::string HandleIpcCommand(const std::string& raw) {
 
             // If switching to prayer and cache is stale/empty, kick a fetch.
             if (mode == "prayer") {
+                PrayerCache cache = GetPrayerCacheSnapshot();
                 time_t now = time(nullptr);
-                bool stale = (g_prayerCache.days.empty()) ||
-                    ((time_t)g_prayerCache.fetched_at + (time_t)kPrayerCacheTtlSeconds < now);
-                bool paramChanged = (g_prayerCache.method != g_dayNight.prayerMethod)
-                    || (fabs(g_prayerCache.latitude - g_dayNight.latitude) > 0.01)
-                    || (fabs(g_prayerCache.longitude - g_dayNight.longitude) > 0.01);
+                bool stale = (cache.days.empty()) ||
+                    ((time_t)cache.fetched_at + (time_t)kPrayerCacheTtlSeconds < now);
+                bool paramChanged = (cache.method != g_dayNight.prayerMethod)
+                    || (fabs(cache.latitude - g_dayNight.latitude) > 0.01)
+                    || (fabs(cache.longitude - g_dayNight.longitude) > 0.01);
                 if (stale || paramChanged) FetchPrayerTimesAsync();
             }
 
@@ -3713,6 +3804,7 @@ static std::string HandleIpcCommand(const std::string& raw) {
                     if (FileExists(p)) SwitchVideoOnMonitor(wp, p);
                 }
             }
+            RefreshLockOverlayVideo();
             return Ipc_Ok(id, { { "mode", mode },{ "enabled", enabled } });
         }
 
@@ -3777,6 +3869,7 @@ static std::string HandleIpcCommand(const std::string& raw) {
             auto ini = GetSettingsFilePath();
             WritePrivateProfileStringA("DayNight", "DayVideo", dv.c_str(), ini.c_str());
             WritePrivateProfileStringA("DayNight", "NightVideo", nv.c_str(), ini.c_str());
+            RefreshLockOverlayVideo();
             return Ipc_Ok(id, { { "day_video", dv },{ "night_video", nv } });
         }
 
@@ -3799,8 +3892,9 @@ static std::string HandleIpcCommand(const std::string& raw) {
                 body["today_sunrise"] = sunrise;
                 body["today_maghrib"] = maghrib;
             }
-            body["cache_days"] = (int)g_prayerCache.days.size();
-            body["cache_fetched_at"] = (long long)g_prayerCache.fetched_at;
+            PrayerCache cache = GetPrayerCacheSnapshot();
+            body["cache_days"] = (int)cache.days.size();
+            body["cache_fetched_at"] = (long long)cache.fetched_at;
             body["is_day_now"] = g_dayNight.isDay;
             return Ipc_Ok(id, body);
         }
@@ -3816,6 +3910,30 @@ static std::string HandleIpcCommand(const std::string& raw) {
         // FEATURE 3 — Lock overlay
         // ============================================================
         if (type == "set_lock_config") {
+            if (g_lockActive && LockPasswordRequired()) {
+                bool weakensProtection = false;
+                if (req["body"].contains("mode")
+                    && req["body"]["mode"].is_string()
+                    && req["body"]["mode"].get<std::string>() == "screensaver") {
+                    weakensProtection = true;
+                }
+                if (req["body"].contains("password")) {
+                    weakensProtection = true;
+                }
+                if (req["body"].value("clear_password", false))
+                    weakensProtection = true;
+
+                if (weakensProtection) {
+                    if (!req["body"].contains("password")
+                        || !req["body"]["password"].is_string()
+                        || Sha256Hex(req["body"]["password"].get<std::string>())
+                            != g_lockPasswordHash) {
+                        return Ipc_Error(id, "password_required",
+                            "The active lock requires the current password");
+                    }
+                }
+            }
+
             if (req["body"].contains("enabled"))
                 g_lockEnabled = req["body"]["enabled"].get<bool>();
             if (req["body"].contains("idle_seconds")) {
@@ -3955,7 +4073,10 @@ static std::string HandleIpcCommand(const std::string& raw) {
 
             SaveLockDayNightConfig();
             std::cout << "[LOCK ] daynight updated: enabled=" << g_lockDayNight.enabled
-                << " mode=" << g_lockDayNight.mode << "\n";
+                << " mode=" << g_lockDayNight.mode
+                << " dayVideo='" << g_lockDayNight.dayVideo << "'"
+                << " nightVideo='" << g_lockDayNight.nightVideo << "'\n";
+            RefreshLockOverlayVideo();
             return Ipc_Ok(id, json::object());
         }
 
@@ -3988,9 +4109,16 @@ static std::string HandleIpcCommand(const std::string& raw) {
         }
 
         if (type == "lock_dismiss") {
-            // Optional password for a programmatic dismiss.
-            if (req["body"].contains("password")
-                && !g_lockPasswordHash.empty()) {
+            if (g_lockMode == "password") {
+                if (g_lockPasswordHash.empty()) {
+                    return Ipc_Error(id, "password_not_configured",
+                        "Password mode has no configured password");
+                }
+                if (!req["body"].contains("password")
+                    || !req["body"]["password"].is_string()) {
+                    return Ipc_Error(id, "password_required",
+                        "A password is required to dismiss the lock");
+                }
                 std::string pw = req["body"]["password"].get<std::string>();
                 if (Sha256Hex(pw) != g_lockPasswordHash) {
                     return Ipc_Error(id, "bad_password", "Wrong password");
@@ -4254,10 +4382,21 @@ int main() {
 
     srand((unsigned)GetTickCount64());
 
+
     bool keepConsole = CommandLineHasFlag(L"--console");
     if (!keepConsole) RedirectOutputAndHideConsole();
 
+    // Diagnostic: identify the exact engine process and executable.
+    char exePath[MAX_PATH] = {};
+    DWORD pathLength = GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+
+    std::cout << "[PROCESS] PID=" << GetCurrentProcessId() << "\n";
+    if (pathLength > 0 && pathLength < MAX_PATH) {
+        std::cout << "[PROCESS] EXE=\"" << exePath << "\"\n";
+    }
+
     std::cout << "Starting Blueprint Engine...\n";
+
     std::cout << "Log file: " << GetLogFilePath() << "\n";
     std::cout << "Single-instance mutex acquired.\n";
 
@@ -4348,9 +4487,10 @@ int main() {
     // missing or stale. Otherwise leave it alone (it'll be fetched when
     // the user switches modes).
     if (g_dayNight.enabled && g_dayNight.mode == "prayer") {
+        PrayerCache cache = GetPrayerCacheSnapshot();
         time_t now = time(nullptr);
         bool stale = !havePrayerCache ||
-            ((time_t)g_prayerCache.fetched_at + (time_t)kPrayerCacheTtlSeconds < now);
+            ((time_t)cache.fetched_at + (time_t)kPrayerCacheTtlSeconds < now);
         if (stale) {
             std::cout << "[PRAYER] cache is "
                 << (havePrayerCache ? "stale" : "missing")
@@ -4402,6 +4542,7 @@ int main() {
         std::string picked = PromptForVideoFile();
         if (picked.empty()) {
             std::cout << "No video selected. Exiting.\n";
+            StopPrayerFetch();
             DestroyTrayAndHiddenWindow();
             UnloadMpvDll();
             ReleaseSingleInstance();
@@ -4505,9 +4646,10 @@ int main() {
             lastPrayerRefetch = now;
             if (g_dayNight.enabled && g_dayNight.mode == "prayer"
                 && !g_prayerFetchInProgress.load()) {
+                PrayerCache cache = GetPrayerCacheSnapshot();
                 time_t t = time(nullptr);
-                bool stale = g_prayerCache.days.empty() ||
-                    ((time_t)g_prayerCache.fetched_at +
+                bool stale = cache.days.empty() ||
+                    ((time_t)cache.fetched_at +
                         (time_t)kPrayerCacheTtlSeconds < t);
                 if (stale) {
                     std::cout << "[PRAYER] cache stale; re-fetching in background\n";
@@ -4560,7 +4702,9 @@ int main() {
 
     StopLockOverlay();   // also uninstalls the keyboard hook
     StopPreview();
+    StopPrayerFetch();
     PipeServer_Stop();
+    PipeServer_RejectPendingRequests();
     DestroyTrayAndHiddenWindow();
     ReleaseAllWallpapers();
     UnloadMpvDll();

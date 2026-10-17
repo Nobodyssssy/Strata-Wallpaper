@@ -133,9 +133,9 @@ public sealed partial class WallpaperDetailPane : UserControl
     private void UpdateFavoriteVisual(bool fav)
     {
         FavoriteIcon.Glyph = fav ? "\uE735" : "\uE734";
-        FavoriteIcon.Foreground = new SolidColorBrush(fav
-            ? Windows.UI.Color.FromArgb(255, 250, 204, 21)
-            : Windows.UI.Color.FromArgb(255, 220, 220, 220));
+        FavoriteIcon.Foreground = fav
+            ? (SolidColorBrush)Application.Current.Resources["FavoriteBrush"]
+            : (SolidColorBrush)Application.Current.Resources["TextFillColorPrimaryBrush"];
     }
 
     private void UpdateAssignmentBadges(WallpaperItem item)

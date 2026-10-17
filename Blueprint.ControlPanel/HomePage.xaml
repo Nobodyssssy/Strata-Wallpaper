@@ -116,6 +116,7 @@
                                     Content="Open Wallpapers"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
+                                    Style="{StaticResource AccentButtonStyle}"
                                     Padding="10,6"
                                     FontSize="11"
                                     Tag="wallpapers"
@@ -159,6 +160,7 @@
                                 <Button Content="Open Performance"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
+                                    Style="{StaticResource AccentButtonStyle}"
                                     Padding="10,6"
                                     FontSize="11"
                                     Tag="performance"
@@ -204,9 +206,11 @@
                                 <TextBlock Text="Customize your lock screen wallpaper and behavior."
                                        FontSize="11" TextWrapping="Wrap" Height="46"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <!-- ADDED STYLE HERE -->
                                 <Button Content="Open Lock Screen"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
+                                    Style="{StaticResource AccentButtonStyle}"
                                     Padding="10,6"
                                     FontSize="11"
                                     Tag="lock"
@@ -291,9 +295,11 @@
                                 <TextBlock Text="Themes, accent colors, window behavior."
                                        FontSize="11" TextWrapping="Wrap" Height="46"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <!-- ADDED STYLE HERE -->
                                 <Button Content="Open Settings"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
+                                    Style="{StaticResource AccentButtonStyle}"
                                     Padding="10,6"
                                     FontSize="11"
                                     Tag="settings"
@@ -367,7 +373,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Ellipse x:Name="StatusDot"
                                              Width="9" Height="9"
-                                             Fill="#6B7280"
+                                             Fill="{ThemeResource StatusOfflineBrush}"
                                              VerticalAlignment="Center"/>
                                     <TextBlock x:Name="StatusLabel"
                                                Text="Engine offline"

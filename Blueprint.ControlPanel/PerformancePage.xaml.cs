@@ -34,9 +34,9 @@ public sealed partial class PerformancePage : Page
     private const string PresetQualityQuality = "ultra";
 
     private static readonly Color AccentBorder =
-        Color.FromArgb(255, 74, 144, 226);
+        ((SolidColorBrush)Application.Current.Resources["AccentFillColorDefaultBrush"]).Color;
     private static readonly Color NeutralBorder =
-        Color.FromArgb(0xFF, 0x33, 0x33, 0x33);
+        ((SolidColorBrush)Application.Current.Resources["CardStrokeColorDefaultBrush"]).Color;
 
     public PerformancePage()
     {
@@ -333,7 +333,7 @@ public sealed partial class PerformancePage : Page
             if (favCount == 0)
             {
                 ShuffleHint.Text = "No favorites starred. Shuffle will fall back to the whole library.";
-                ShuffleHint.Foreground = new SolidColorBrush(Color.FromArgb(255, 250, 204, 21));
+                ShuffleHint.Foreground = (SolidColorBrush)Application.Current.Resources["WarningBrush"];
                 ShuffleHint.Visibility = Visibility.Visible;
             }
             else

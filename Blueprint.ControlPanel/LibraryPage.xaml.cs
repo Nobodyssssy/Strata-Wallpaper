@@ -2,6 +2,7 @@ using Blueprint.ControlPanel.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
@@ -22,21 +23,23 @@ using Windows.Storage.Pickers;
 
 namespace Blueprint.ControlPanel;
 
-// ═══════════════════════════════════════════════════════════════
-//  Item model
-// ═══════════════════════════════════════════════════════════════
 public sealed class WallpaperItem : INotifyPropertyChanged
 {
     public string Path { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Folder { get; set; } = "";
 
-    // ── Thumbnail / loading ────────────────────────────────
     private ImageSource? _thumbnail;
     public ImageSource? Thumbnail
     {
         get => _thumbnail;
-        set { _thumbnail = value; OnChanged(nameof(Thumbnail)); }
+        set
+        {
+            _thumbnail = value;
+            OnChanged(nameof(Thumbnail));
+            OnChanged(nameof(ThumbnailVisibility));
+            OnChanged(nameof(PlaceholderVisibility));
+        }
     }
 
     private bool _thumbnailLoaded;
@@ -49,13 +52,23 @@ public sealed class WallpaperItem : INotifyPropertyChanged
             _thumbnailLoaded = value;
             OnChanged(nameof(ThumbnailLoaded));
             OnChanged(nameof(LoadingVisibility));
+            OnChanged(nameof(PlaceholderVisibility));
         }
     }
 
     public Visibility LoadingVisibility
         => (!_thumbnailLoaded && !_isMissing) ? Visibility.Visible : Visibility.Collapsed;
 
-    // ── Favorite ───────────────────────────────────────────
+    public Visibility ThumbnailVisibility
+        => _thumbnail != null ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility PlaceholderVisibility
+        => _thumbnail == null && _thumbnailLoaded
+            ? Visibility.Visible : Visibility.Collapsed;
+
+    public string FileTypeGlyph
+        => _mediaType == "live2d" ? "\uE7C4" : "\uE8A5";
+
     private bool _isFavorite;
     public bool IsFavorite
     {
@@ -70,7 +83,6 @@ public sealed class WallpaperItem : INotifyPropertyChanged
         }
     }
 
-    // ── Media type ─────────────────────────────────────────
     private string _mediaType = "video";
     public string MediaType
     {
@@ -82,10 +94,10 @@ public sealed class WallpaperItem : INotifyPropertyChanged
             OnChanged(nameof(MediaType));
             OnChanged(nameof(Live2DBadgeVisibility));
             OnChanged(nameof(MetaLine));
+            OnChanged(nameof(FileTypeGlyph));
         }
     }
 
-    // ── Missing ────────────────────────────────────────────
     private bool _isMissing;
     public bool IsMissing
     {
@@ -100,7 +112,6 @@ public sealed class WallpaperItem : INotifyPropertyChanged
         }
     }
 
-    // ── Assignment badges ──────────────────────────────────
     private bool _assignedM1;
     public bool AssignedM1
     {
@@ -145,7 +156,6 @@ public sealed class WallpaperItem : INotifyPropertyChanged
     public bool IsAssignedAnywhere
         => _assignedM1 || _assignedM2 || _assignedBoth || _assignedLock;
 
-    // ── Metadata ───────────────────────────────────────────
     private int? _width;
     public int? Width
     {
@@ -187,13 +197,11 @@ public sealed class WallpaperItem : INotifyPropertyChanged
         }
     }
 
-    // ── Computed bindings used by XAML ─────────────────────
     public string FavoriteGlyph => _isFavorite ? "\uE735" : "\uE734";
 
     public Brush FavoriteColor =>
-        _isFavorite
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 250, 204, 21))
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 220, 220));
+        Application.Current.Resources[_isFavorite ? "FavoriteBrush" : "TextFillColorPrimaryBrush"] as Brush
+        ?? new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
     public Visibility Live2DBadgeVisibility
         => _mediaType == "live2d" ? Visibility.Visible : Visibility.Collapsed;
@@ -261,12 +269,31 @@ public sealed class WallpaperItem : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 }
 
+public class WallpaperGroup : ObservableCollection<WallpaperItem>
+{
+    public string Key { get; private set; }
+    public WallpaperGroup(string key, IEnumerable<WallpaperItem> items) : base(items)
+    {
+        Key = key;
+    }
+}
 
-// ═══════════════════════════════════════════════════════════════
-//  Page
-// ═══════════════════════════════════════════════════════════════
+public class BreadcrumbNode
+{
+    public string Name { get; set; } = "";
+    public string Path { get; set; } = "";
+}
+
+public class FolderDisplayItem
+{
+    public string Name { get; set; } = "";
+    public string FullPath { get; set; } = "";
+}
+
 public sealed partial class LibraryPage : Page
 {
+    public CollectionViewSource GroupedWallpapers { get; } = new CollectionViewSource { IsSourceGrouped = true };
+
     private readonly EnginePipeClient _client = new();
     private readonly ObservableCollection<WallpaperItem> _all = new();
     private readonly ObservableCollection<WallpaperItem> _visible = new();
@@ -276,23 +303,17 @@ public sealed partial class LibraryPage : Page
 
     private string _activeFilter = "all";
     private int _monitorCount = 1;
+    private Windows.Media.Playback.MediaPlayer? _previewPlayer;
 
-    // Set by another page (e.g. Home → View All Favorites) before
-    // navigating here. Consumed on next Loaded.
     public static string? PendingFilter;
 
-    // Sidebar state. Session-only for now; persistence is a follow-up
-    // UiSettings.cs change.
-    private string _scope = "desktop";   // "desktop" | "lock"
-    private string _target = "all";       // "0" | "1" | "all"
+    private string _scope = "desktop";
+    private string _target = "all";
 
-    // Assignment state mirror from get_settings
     private string? _globalAssignmentPath;
     private readonly Dictionary<int, string> _monitorAssignments = new();
     private string? _lockAssignmentPath;
 
-    // Debounced UiSettings save so thumbnail metadata probes don't
-    // hammer disk on big libraries.
     private int _savePending;
 
     private static readonly string[] VideoExtensions =
@@ -301,14 +322,10 @@ public sealed partial class LibraryPage : Page
     public LibraryPage()
     {
         InitializeComponent();
-        WallpaperGrid.ItemsSource = _visible;
         Loaded += OnPageLoaded;
         Unloaded += OnPageUnloaded;
     }
 
-    // ============================================================
-    //  Lifecycle
-    // ============================================================
     private static async void SafeRun(Func<Task> body)
     {
         try { await body(); }
@@ -324,8 +341,6 @@ public sealed partial class LibraryPage : Page
         SyncScopeButtons();
         SyncTargetButtons();
 
-        // Consume any filter handed to us by another page (Home's
-        // "View All" for favorites).
         if (!string.IsNullOrEmpty(PendingFilter))
         {
             _activeFilter = PendingFilter!;
@@ -348,9 +363,6 @@ public sealed partial class LibraryPage : Page
         await RefreshAsync();
     }
 
-    // ============================================================
-    //  Assignment state
-    // ============================================================
     private async Task RefreshAssignmentStateAsync()
     {
         var resp = await _client.SendAsync("get_settings", ct: _cts.Token);
@@ -378,14 +390,11 @@ public sealed partial class LibraryPage : Page
         TargetM1.IsEnabled = _monitorCount >= 1;
         TargetM2.IsEnabled = _monitorCount >= 2;
         TargetBoth.IsEnabled = true;
-        TargetSpan.IsEnabled = false;   // Phase 1 — "coming soon"
+        TargetSpan.IsEnabled = false;
 
         UpdateApplyButtonLabel();
     }
 
-    // Effective assignment = per-monitor override if set, otherwise the
-    // global "Both" assignment. A tile's badges reflect what a monitor
-    // actually resolves to right now, not the historical clicks.
     private string? ResolveEffective(int monitorIdx)
     {
         if (_monitorAssignments.TryGetValue(monitorIdx, out var p)
@@ -422,9 +431,6 @@ public sealed partial class LibraryPage : Page
         => !string.IsNullOrEmpty(a) && !string.IsNullOrEmpty(b)
            && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-    // ============================================================
-    //  Library scan
-    // ============================================================
     private async Task RefreshAsync()
     {
         if (_cts.IsCancellationRequested) return;
@@ -449,6 +455,7 @@ public sealed partial class LibraryPage : Page
         }
 
         ApplyAssignmentBadges();
+        BuildFolderTree();
         ApplyFilter();
         UpdateChipCounts();
 
@@ -504,8 +511,6 @@ public sealed partial class LibraryPage : Page
                 if (video.Duration > TimeSpan.Zero)
                     item.DurationSeconds = video.Duration.TotalSeconds;
 
-                // Cache in ui-settings so the details pane and future
-                // sorts have it without re-probing.
                 var cfg = UiSettings.Current.GetOrCreateConfig(item.Path);
                 cfg.Width = item.Width;
                 cfg.Height = item.Height;
@@ -554,9 +559,6 @@ public sealed partial class LibraryPage : Page
         catch { return null; }
     }
 
-    // ============================================================
-    //  INI helpers (library folders)
-    // ============================================================
     private static string GetSettingsPath()
     {
         var dir = Path.Combine(
@@ -593,9 +595,6 @@ public sealed partial class LibraryPage : Page
         => WritePrivateProfileString("Library", "Folders",
             string.Join(";", folders), GetSettingsPath());
 
-    // ============================================================
-    //  Folder scan
-    // ============================================================
     private static void ScanFolder(string folder, List<string> outFiles)
     {
         try
@@ -626,9 +625,6 @@ public sealed partial class LibraryPage : Page
             .ToList();
     }
 
-    // ============================================================
-    //  Filter + sort
-    // ============================================================
     private void OnFilterChipClick(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleButton clicked) return;
@@ -651,9 +647,25 @@ public sealed partial class LibraryPage : Page
         ApplyFilter();
     }
 
+    private void BuildFolderTree()
+    {
+        var allFolders = _all.Select(i => i.Folder)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(f => f)
+            .Select(f => new FolderDisplayItem { Name = new DirectoryInfo(f).Name, FullPath = f })
+            .ToList();
+        FolderTreeView.ItemsSource = allFolders;
+
+        if (string.IsNullOrEmpty(_currentFolder) || _currentFolder == "This PC")
+        {
+            _currentFolder = allFolders.FirstOrDefault()?.FullPath ?? "";
+        }
+    }
+
     private void ApplyFilter()
     {
         if (WallpaperGrid == null) return;
+
         IEnumerable<WallpaperItem> q = _all;
 
         switch (_activeFilter)
@@ -672,45 +684,35 @@ public sealed partial class LibraryPage : Page
 
         switch (SortCombo?.SelectedIndex ?? 0)
         {
-            case 1:  // Name Z→A
-                q = q.OrderByDescending(i => i.DisplayName, StringComparer.OrdinalIgnoreCase);
-                break;
-            case 2:  // Recently added (file creation time as proxy)
-                q = q.OrderByDescending(i => SafeTime(i.Path, creation: true));
-                break;
-            case 3:  // Recently applied
-                q = q.OrderByDescending(i =>
-                    UiSettings.Current.GetConfig(i.Path)?.LastAppliedUtc ?? DateTime.MinValue);
-                break;
-            case 4:  // Favorites first
-                q = q.OrderByDescending(i => i.IsFavorite)
-                     .ThenBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase);
-                break;
-            case 5:  // Duration (shortest first)
-                q = q.OrderBy(i => i.DurationSeconds ?? double.MaxValue);
-                break;
-            case 6:  // Resolution (smallest first)
-                q = q.OrderBy(i =>
-                {
-                    if (i.Width is int w && i.Height is int h && w > 0 && h > 0)
-                        return (long)w * h;
-                    return long.MaxValue;
-                });
-                break;
-            case 7:  // File size (smallest first)
-                q = q.OrderBy(i => i.FileSize ?? long.MaxValue);
-                break;
-            case 8:  // Recently modified
-                q = q.OrderByDescending(i => SafeTime(i.Path, creation: false));
-                break;
-            default: // Name A→Z
-                q = q.OrderBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase);
-                break;
+            case 1: q = q.OrderByDescending(i => i.DisplayName, StringComparer.OrdinalIgnoreCase); break;
+            case 2: q = q.OrderByDescending(i => SafeTime(i.Path, creation: true)); break;
+            case 3: q = q.OrderByDescending(i => UiSettings.Current.GetConfig(i.Path)?.LastAppliedUtc ?? DateTime.MinValue); break;
+            case 4: q = q.OrderByDescending(i => i.IsFavorite).ThenBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase); break;
+            case 5: q = q.OrderBy(i => i.DurationSeconds ?? double.MaxValue); break;
+            case 6: q = q.OrderBy(i => (i.Width is int w && i.Height is int h && w > 0 && h > 0) ? (long)w * h : long.MaxValue); break;
+            case 7: q = q.OrderBy(i => i.FileSize ?? long.MaxValue); break;
+            case 8: q = q.OrderByDescending(i => SafeTime(i.Path, creation: false)); break;
+            default: q = q.OrderBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase); break;
         }
 
         var list = q.ToList();
         _visible.Clear();
         foreach (var item in list) _visible.Add(item);
+
+        if (_isFolderView)
+        {
+            // --- FOLDER VIEW LOGIC ---
+            var filesInFolder = _all.Where(i => string.Equals(i.Folder.TrimEnd('\\'), _currentFolder.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)).ToList();
+            FileListView.ItemsSource = filesInFolder;
+
+            bool emptyFolder = filesInFolder.Count == 0;
+            EmptyState.Visibility = emptyFolder ? Visibility.Visible : Visibility.Collapsed;
+            StatusText.Text = $"{filesInFolder.Count} items";
+            return;
+        }
+
+        // --- GALLERY VIEW LOGIC ---
+        WallpaperGrid.ItemsSource = list;
 
         bool empty = _visible.Count == 0;
         EmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
@@ -725,26 +727,21 @@ public sealed partial class LibraryPage : Page
     {
         try
         {
-            return creation
-                ? File.GetCreationTimeUtc(path)
-                : File.GetLastWriteTimeUtc(path);
+            return creation ? File.GetCreationTimeUtc(path) : File.GetLastWriteTimeUtc(path);
         }
         catch { return DateTime.MinValue; }
     }
 
-    // ============================================================
-    //  Selection → sidebar
-    // ============================================================
     private void OnWallpaperItemClick(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is not WallpaperItem item) return;
-        SelectWallpaper(item);
+        if (e.ClickedItem is WallpaperItem item) SelectWallpaper(item);
     }
 
     private void SelectWallpaper(WallpaperItem item)
     {
         if (_selected != null) _selected.PropertyChanged -= OnSelectedItemChanged;
         _selected = item;
+        System.Diagnostics.Debug.WriteLine($"[Library] Selected: {item.Path}");
         _selected.PropertyChanged += OnSelectedItemChanged;
 
         SidebarNoSelection.Visibility = Visibility.Collapsed;
@@ -790,9 +787,6 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    // ============================================================
-    //  Scope / target segmented controls
-    // ============================================================
     private void OnScopeClick(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleButton t || t.Tag is not string scope) return;
@@ -805,7 +799,7 @@ public sealed partial class LibraryPage : Page
     private void OnTargetClick(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleButton t || t.Tag is not string target) return;
-        if (target == "span") return;   // disabled in Phase 1
+        if (target == "span") return;
 
         _target = target;
         SyncTargetButtons();
@@ -818,16 +812,11 @@ public sealed partial class LibraryPage : Page
         ScopeDesktop.IsChecked = _scope == "desktop";
         ScopeLock.IsChecked = _scope == "lock";
 
-        // Same target row serves both scopes; only the label changes.
         MonitorTargetsSection.Visibility = Visibility.Visible;
-        TargetSectionLabel.Text = _scope == "lock"
-            ? "Lock wallpaper target"
-            : "Monitor target";
+        TargetSectionLabel.Text = _scope == "lock" ? "Lock wallpaper target" : "Monitor target";
 
         PreviewButton.Visibility = Visibility.Visible;
-        PreviewButtonText.Text = _scope == "lock"
-            ? "Preview Lock Screen"
-            : "Preview Desktop";
+        PreviewButtonText.Text = _scope == "lock" ? "Preview Lock Screen" : "Preview Desktop";
     }
 
     private void SyncTargetButtons()
@@ -848,8 +837,7 @@ public sealed partial class LibraryPage : Page
             {
                 "0" => "Apply to Lock — Monitor 1",
                 "1" => "Apply to Lock — Monitor 2",
-                _ => _monitorCount >= 2 ? "Apply to Lock — Both monitors"
-                                          : "Apply to Lock Screen",
+                _ => _monitorCount >= 2 ? "Apply to Lock — Both monitors" : "Apply to Lock Screen",
             };
             return;
         }
@@ -861,9 +849,6 @@ public sealed partial class LibraryPage : Page
         };
     }
 
-    // ============================================================
-    //  Apply
-    // ============================================================
     private void OnApplyClick(object sender, RoutedEventArgs e)
     {
         if (_selected == null) return;
@@ -879,7 +864,6 @@ public sealed partial class LibraryPage : Page
     private async Task ShowPreviewDialogAsync(string path)
     {
         bool isLock = _scope == "lock";
-
         PreviewOverlayTitle.Text = isLock ? "Lock Screen Preview" : "Desktop Preview";
         PreviewOverlayLabel.Text = DescribeTarget();
 
@@ -893,13 +877,17 @@ public sealed partial class LibraryPage : Page
 
         try
         {
+            _previewPlayer?.Pause();
+            _previewPlayer?.Dispose();
+
+            _previewPlayer = new Windows.Media.Playback.MediaPlayer();
             var file = await StorageFile.GetFileFromPathAsync(path);
-            PreviewMediaPlayer.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(file);
+            _previewPlayer.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(file);
+            _previewPlayer.IsLoopingEnabled = true;
+            _previewPlayer.Play();
+            PreviewMediaPlayer.SetMediaPlayer(_previewPlayer);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Preview] {ex}");
-        }
+        catch (Exception ex) { Debug.WriteLine($"[Preview] {ex}"); }
 
         PreviewOverlay.Visibility = Visibility.Visible;
     }
@@ -907,7 +895,10 @@ public sealed partial class LibraryPage : Page
     private void OnPreviewOverlayCloseClick(object sender, RoutedEventArgs e)
     {
         PreviewOverlay.Visibility = Visibility.Collapsed;
-        PreviewMediaPlayer.Source = null; // Stop playback and free resources
+        PreviewMediaPlayer.SetMediaPlayer(null);
+        _previewPlayer?.Pause();
+        _previewPlayer?.Dispose();
+        _previewPlayer = null;
     }
 
     private async Task ApplySelectedAsync(WallpaperItem item)
@@ -916,29 +907,19 @@ public sealed partial class LibraryPage : Page
 
         if (item.IsMissing)
         {
-            SetApplyStatus(
-                "Cannot apply: file is missing. Use “Locate file…” first.",
-                error: true);
+            SetApplyStatus("Cannot apply: file is missing. Use “Locate file…” first.", error: true);
             return;
         }
 
         JsonNode? resp;
         if (_scope == "lock")
         {
-            var body = new JsonObject
-            {
-                ["path"] = item.Path,
-                ["monitor"] = _target
-            };
+            var body = new JsonObject { ["path"] = item.Path, ["monitor"] = _target };
             resp = await _client.SendAsync("set_lock_wallpaper", body, _cts.Token);
         }
         else
         {
-            var body = new JsonObject
-            {
-                ["path"] = item.Path,
-                ["monitor"] = _target
-            };
+            var body = new JsonObject { ["path"] = item.Path, ["monitor"] = _target };
             resp = await _client.SendAsync("apply_wallpaper", body, _cts.Token);
         }
         if (_cts.IsCancellationRequested) return;
@@ -961,9 +942,7 @@ public sealed partial class LibraryPage : Page
         }
         else
         {
-            SetApplyStatus(
-                "Could not apply. Is the engine running?",
-                error: true);
+            SetApplyStatus("Could not apply. Is the engine running?", error: true);
         }
     }
 
@@ -980,15 +959,18 @@ public sealed partial class LibraryPage : Page
     private void SetApplyStatus(string text, bool error)
     {
         ApplyStatusText.Text = text;
-        ApplyStatusText.Foreground = new SolidColorBrush(error
-            ? Windows.UI.Color.FromArgb(255, 220, 100, 100)
-            : Windows.UI.Color.FromArgb(255, 120, 200, 120));
+        ApplyStatusText.Foreground = GetThemeBrush(error ? "ErrorTextBrush" : "StatusOnlineBrush");
         ApplyStatusText.Visibility = Visibility.Visible;
     }
 
-    // ============================================================
-    //  Locate missing file
-    // ============================================================
+    private static Brush GetThemeBrush(string key)
+    {
+        return Application.Current.Resources.TryGetValue(key, out var value)
+            && value is Brush brush
+            ? brush
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    }
+
     private void OnLocateFileClick(object sender, RoutedEventArgs e)
     {
         if (_selected == null) return;
@@ -1014,11 +996,7 @@ public sealed partial class LibraryPage : Page
         string oldPath = item.Path;
         string newPath = file.Path;
 
-        var body = new JsonObject
-        {
-            ["old_path"] = oldPath,
-            ["new_path"] = newPath
-        };
+        var body = new JsonObject { ["old_path"] = oldPath, ["new_path"] = newPath };
         var resp = await _client.SendAsync("relocate_library_file", body, _cts.Token);
         if (_cts.IsCancellationRequested) return;
 
@@ -1029,8 +1007,7 @@ public sealed partial class LibraryPage : Page
 
         if (!ok)
         {
-            await ShowDialog(
-                "Could not relocate file",
+            await ShowDialog("Could not relocate file",
                 "The engine did not accept the new path. Make sure it is running, then try again. The library entry was left unchanged.");
         }
 
@@ -1051,9 +1028,6 @@ public sealed partial class LibraryPage : Page
         UiSettings.Current.WallpaperOverrides[newPath] = cfg;
     }
 
-    // ============================================================
-    //  Favorites
-    // ============================================================
     private void OnFavoriteClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button b || b.Tag is not WallpaperItem item) return;
@@ -1068,9 +1042,6 @@ public sealed partial class LibraryPage : Page
         if (_activeFilter == "favorites") ApplyFilter();
     }
 
-    // ============================================================
-    //  Details pane
-    // ============================================================
     private void OnShowDetailsClick(object sender, RoutedEventArgs e)
     {
         if (_selected == null) return;
@@ -1086,9 +1057,6 @@ public sealed partial class LibraryPage : Page
         SidebarBorder.Visibility = Visibility.Visible;
     }
 
-    // ============================================================
-    //  Refresh + Add Folder
-    // ============================================================
     private void OnRefreshClick(object sender, RoutedEventArgs e)
         => SafeRun(async () =>
         {
@@ -1112,8 +1080,7 @@ public sealed partial class LibraryPage : Page
             if (folder == null || _cts.IsCancellationRequested) return;
 
             var folders = ReadFoldersFromIni();
-            if (!folders.Any(f => string.Equals(f, folder.Path,
-                    StringComparison.OrdinalIgnoreCase)))
+            if (!folders.Any(f => string.Equals(f, folder.Path, StringComparison.OrdinalIgnoreCase)))
             {
                 folders.Add(folder.Path);
                 WriteFoldersToIni(folders);
@@ -1126,9 +1093,6 @@ public sealed partial class LibraryPage : Page
             await RefreshAsync();
         });
 
-    // ============================================================
-    //  Dialog helper
-    // ============================================================
     private async Task ShowDialog(string title, string content)
     {
         await new ContentDialog
@@ -1138,5 +1102,54 @@ public sealed partial class LibraryPage : Page
             CloseButtonText = "OK",
             XamlRoot = this.XamlRoot
         }.ShowAsync();
+    }
+    private bool _isFolderView = false;
+    private string _currentFolder = "This PC";
+
+    private void OnViewToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton btn) return;
+
+        _isFolderView = btn.Tag as string == "folder";
+        ViewGalleryToggle.IsChecked = !_isFolderView;
+        ViewFolderToggle.IsChecked = _isFolderView;
+
+        WallpaperGrid.Visibility = _isFolderView ? Visibility.Collapsed : Visibility.Visible;
+        FolderViewPanel.Visibility = _isFolderView ? Visibility.Visible : Visibility.Collapsed;
+        FolderBreadcrumb.Visibility = Visibility.Collapsed;
+        FilterChips.Visibility = _isFolderView ? Visibility.Collapsed : Visibility.Visible;
+
+        if (_isFolderView && string.IsNullOrEmpty(_currentFolder))
+        {
+            _currentFolder = "This PC";
+        }
+
+        ApplyFilter();
+    }
+
+    private void OnFolderTreeClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is FolderDisplayItem folder)
+        {
+            _currentFolder = folder.FullPath;
+            ApplyFilter();
+        }
+    }
+
+    private void OnFileItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is WallpaperItem item)
+        {
+            SelectWallpaper(item);
+        }
+    }
+
+    private void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
+    {
+        if (args.Item is BreadcrumbNode node)
+        {
+            _currentFolder = node.Path;
+            ApplyFilter();
+        }
     }
 }

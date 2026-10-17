@@ -91,7 +91,7 @@
                                     <Image x:Name="LockWallpaperPreview"
                                            Stretch="UniformToFill"/>
                                     <Border x:Name="LockPreviewDimOverlay"
-                                            Background="#66000000"
+                                             Background="{ThemeResource OverlayScrimBrush}"
                                             Visibility="Collapsed"/>
                                     <StackPanel HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
@@ -102,12 +102,12 @@
                                                    FontSize="28"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="White"/>
+                                                    Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                         <TextBlock x:Name="LockPreviewClockDate"
                                                    Text="—"
                                                    FontSize="10"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="White"/>
+                                                    Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                     </StackPanel>
                                 </Grid>
 
@@ -126,7 +126,7 @@
                                             <Image x:Name="LockWallpaperPreviewM1"
                                                    Stretch="Uniform"/>
                                             <Border x:Name="LockPreviewDimOverlayM1"
-                                                    Background="#66000000"
+                                                     Background="{ThemeResource OverlayScrimBrush}"
                                                     Visibility="Collapsed"/>
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
@@ -137,12 +137,12 @@
                                                            FontSize="22"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="White"/>
+                                                            Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                                 <TextBlock x:Name="LockPreviewClockDateM1"
                                                            Text="—"
                                                            FontSize="9"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="White"/>
+                                                           Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -153,7 +153,7 @@
                                             <Image x:Name="LockWallpaperPreviewM2"
                                                    Stretch="Uniform"/>
                                             <Border x:Name="LockPreviewDimOverlayM2"
-                                                    Background="#66000000"
+                                                     Background="{ThemeResource OverlayScrimBrush}"
                                                     Visibility="Collapsed"/>
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
@@ -164,12 +164,12 @@
                                                            FontSize="22"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="White"/>
+                                                           Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                                 <TextBlock x:Name="LockPreviewClockDateM2"
                                                            Text="—"
                                                            FontSize="9"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="White"/>
+                                                           Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>

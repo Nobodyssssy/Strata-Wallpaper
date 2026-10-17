@@ -23,5 +23,9 @@ bool PipeServer_Start(HWND hNotifyWnd);
 // Signals the thread to stop and joins it. Call from cleanup.
 void PipeServer_Stop();
 
+// Rejects requests already posted to the hidden window but not dispatched
+// before shutdown. Call after PipeServer_Stop and before destroying the window.
+void PipeServer_RejectPendingRequests();
+
 // Sends the response back to the client, closes the pipe, frees the request.
 void PipeServer_CompleteRequest(PendingRequest* req, const std::string& responseJson);

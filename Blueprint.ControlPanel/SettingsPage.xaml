@@ -43,6 +43,10 @@
                                 </ComboBox>
                             </StackPanel>
 
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                                <ToggleSwitch x:Name="UseThemeFontToggle" Header="Use theme font" Toggled="OnUseThemeFontToggled" />
+                            </StackPanel>
+
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Color Scheme" FontSize="12"/>
                                 <ComboBox x:Name="VariantCombo" HorizontalAlignment="Stretch" SelectionChanged="OnVariantChanged">

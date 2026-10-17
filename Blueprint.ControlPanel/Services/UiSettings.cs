@@ -16,6 +16,7 @@ public sealed class UiSettings
     public string BaseTheme { get; set; } = "Aura";     // "Aura"|"Catppuccin"|"Dracula"
     public string Theme { get; set; } = "System";       // "System"|"Light"|"Dark"
     public string AccentScheme { get; set; } = "default";
+    public bool UseThemeFont { get; set; } = true;
 
     // ── Window behaviour ───────────────────────────────────
     public string CloseAction { get; set; } = "ask";    // "ask"|"exit"|"tray"
