@@ -1,0 +1,365 @@
+<Page
+    x:Class="Blueprint.ControlPanel.PerformancePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer Padding="24,20,24,20">
+        <StackPanel Spacing="18" MaxWidth="1200" HorizontalAlignment="Left">
+
+            <!-- ═══════════ Header ═══════════ -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="Performance" FontSize="28" FontWeight="SemiBold"/>
+                    <TextBlock Text="Adjust performance, quality and resource usage for the best experience."
+                               FontSize="13"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <Button Grid.Column="1"
+                        VerticalAlignment="Top"
+                        Click="OnResetDefaultsClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE777;" FontSize="13"/>
+                        <TextBlock Text="Reset to Default" FontSize="12"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- ═══════════ 3-column body ═══════════ -->
+            <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ─────────── COLUMN 1: FPS + Quality ─────────── -->
+                <StackPanel Grid.Column="0" Spacing="14">
+
+                    <!-- FPS card -->
+                    <Border Padding="18" CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="FPS Limit" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="Higher FPS looks smoother but uses more GPU and CPU."
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="FpsSlider"
+                                        Grid.Column="0"
+                                        Minimum="15" Maximum="60"
+                                        StepFrequency="5"
+                                        TickFrequency="5"
+                                        TickPlacement="Outside"
+                                        SnapsTo="StepValues"
+                                        Value="30"/>
+                                <TextBlock x:Name="FpsValueText"
+                                           Grid.Column="1"
+                                           MinWidth="52"
+                                           Margin="10,0,0,0"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           TextAlignment="Right"
+                                           Text="30"/>
+                            </Grid>
+
+                            <!-- Tick labels under the slider -->
+                            <Grid Margin="0,-6,52,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="15" FontSize="10"
+                                           HorizontalAlignment="Left"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="25" FontSize="10"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Grid.Column="2" Text="45" FontSize="10"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Grid.Column="3" Text="60" FontSize="10"
+                                           HorizontalAlignment="Right"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Quality card -->
+                    <Border Padding="18" CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Video Quality" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="Balance quality and performance."
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <RadioButton x:Name="QualityLow"
+                                         GroupName="Quality"
+                                         Content="Low (fast)"
+                                         Checked="OnQualityChanged"/>
+                            <RadioButton x:Name="QualityMedium"
+                                         GroupName="Quality"
+                                         Content="Medium"
+                                         Checked="OnQualityChanged"/>
+                            <RadioButton x:Name="QualityUltra"
+                                         GroupName="Quality"
+                                         Content="Ultra"
+                                         Checked="OnQualityChanged"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ─────────── COLUMN 2: Advanced ─────────── -->
+                <StackPanel Grid.Column="1" Spacing="14">
+
+                    <Border Padding="18" CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Advanced Settings" FontSize="14" FontWeight="SemiBold"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Hardware Decoding" FontSize="12"/>
+                                    <TextBlock Text="Use GPU for video decode."
+                                               FontSize="10"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="HardwareDecodeToggle"
+                                              Grid.Column="1"
+                                              IsOn="True"
+                                              Toggled="OnHardwareDecodeToggled"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="VSync" FontSize="12"/>
+                                    <TextBlock Text="Reduce tearing (may increase latency)."
+                                               FontSize="10"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="VSyncToggle"
+                                              Grid.Column="1"
+                                              IsOn="True"
+                                              Toggled="OnVSyncToggled"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Low Latency" FontSize="12"/>
+                                    <TextBlock Text="Minimize delay (may reduce stability)."
+                                               FontSize="10"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="LowLatencyToggle"
+                                              Grid.Column="1"
+                                              IsOn="False"
+                                              Toggled="OnLowLatencyToggled"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Expert Options expander -->
+                    <Expander Header="Expert Options"
+                              HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch">
+                        <StackPanel Spacing="14" Padding="0,12,0,0">
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Slideshow rotation" FontSize="12"/>
+                                <ToggleSwitch x:Name="SlideshowToggle"
+                                              OnContent="On" OffContent="Off"
+                                              Toggled="OnSlideshowToggled"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Slideshow interval (minutes)" FontSize="12"/>
+                                <Slider x:Name="SlideshowSlider"
+                                        Minimum="1" Maximum="120"
+                                        StepFrequency="1"
+                                        Value="10"/>
+                                <TextBlock x:Name="SlideshowValueText"
+                                           FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Pause after idle (seconds, 0 = off)" FontSize="12"/>
+                                <Slider x:Name="IdleSlider"
+                                        Minimum="0" Maximum="600"
+                                        StepFrequency="10"
+                                        Value="0"/>
+                                <TextBlock x:Name="IdleValueText"
+                                           FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4" Margin="0,6,0,0">
+                                <TextBlock Text="Shuffle" FontSize="12" FontWeight="SemiBold"/>
+                                <ToggleSwitch x:Name="ShuffleToggle"
+                                              OnContent="On" OffContent="Off"
+                                              Toggled="OnShuffleToggled"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ShuffleScopePanel" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
+                                <TextBlock Text="Shuffle Scope" FontSize="12"/>
+                                <ComboBox x:Name="ShuffleScopeCombo" HorizontalAlignment="Stretch" SelectionChanged="OnShuffleScopeChanged">
+                                    <ComboBoxItem Content="Whole Library"/>
+                                    <ComboBoxItem Content="Favorites Only"/>
+                                </ComboBox>
+                                <TextBlock x:Name="ShuffleHint" Text="Favorites only requires starred wallpapers." FontSize="10" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+
+                <!-- ─────────── COLUMN 3: Presets ─────────── -->
+                <StackPanel Grid.Column="2" Spacing="10">
+
+                    <TextBlock Text="Performance Presets"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Margin="4,0,0,4"/>
+
+                    <!-- Preset card 1: Performance -->
+                    <Border x:Name="PresetPerformanceCard"
+                            Padding="16"
+                            CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE945;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="Performance" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="15 FPS · Low Quality"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Button x:Name="PresetPerformanceButton"
+                                    Content="Select"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,6,0,0"
+                                    FontSize="11"
+                                    Click="OnPresetPerformanceClick"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Preset card 2: Balanced -->
+                    <Border x:Name="PresetBalancedCard"
+                            Padding="16"
+                            CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE9D9;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="Balanced" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="30 FPS · Medium Quality"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Button x:Name="PresetBalancedButton"
+                                    Content="Select"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,6,0,0"
+                                    FontSize="11"
+                                    Click="OnPresetBalancedClick"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Preset card 3: Quality -->
+                    <Border x:Name="PresetQualityCard"
+                            Padding="16"
+                            CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE95E;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="Quality" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="60 FPS · High Quality"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Button x:Name="PresetQualityButton"
+                                    Content="Select"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,6,0,0"
+                                    FontSize="11"
+                                    Click="OnPresetQualityClick"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Preset card 4: Custom -->
+                    <Border x:Name="PresetCustomCard"
+                            Padding="16"
+                            CornerRadius="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE713;" FontSize="16"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="Custom" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Adjust sliders to make it your own"
+                                       FontSize="10"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <InfoBar x:Name="SaveBar"
+                             IsOpen="False"
+                             Severity="Success"
+                             Title="Saved"
+                             Message="Setting applied."
+                             IsClosable="False"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

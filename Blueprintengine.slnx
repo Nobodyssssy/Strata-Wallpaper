@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Blueprint.ControlPanel/Blueprint.ControlPanel.csproj">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+    <Deploy />
+  </Project>
+  <Project Path="Blueprintengine.vcxproj" Id="ef6b9bb1-8ed0-40b7-9853-776c3024af7d">
+    <Platform Solution="*|ARM64" Project="x64" />
+  </Project>
+</Solution>

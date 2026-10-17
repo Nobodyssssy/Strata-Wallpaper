@@ -1,0 +1,87 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+		<RootNamespace>Blueprint.ControlPanel</RootNamespace>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<Platforms>x86;x64;ARM64</Platforms>
+		<RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
+		<UseWinUI>true</UseWinUI>
+		<WinUISDKReferences>false</WinUISDKReferences>
+		<EnableMsixTooling>false</EnableMsixTooling>
+		<Nullable>enable</Nullable>
+		<WindowsPackageType>None</WindowsPackageType>
+		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+		<SelfContained>true</SelfContained>
+		<EnableDefaultPageItems>false</EnableDefaultPageItems>
+	</PropertyGroup>
+	<ItemGroup>
+	  <None Remove="LockPage.xaml" />
+	  <None Remove="PerformancePage.xaml" />
+	  <None Remove="Styles\Aura.xaml" />
+	  <None Remove="Styles\Themes\Catppuccin.xaml" />
+	  <None Remove="Styles\Themes\Dracula.xaml" />
+	  <None Remove="WallpaperDetailPane.xaml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Page Include="LockPage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="MainWindow.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="HomePage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="LibraryPage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="PerformancePage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="SettingsPage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="Styles\Themes\Aura.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="Styles\Themes\Catppuccin.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="Styles\Themes\Dracula.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="WallpaperDetailPane.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Assets\SplashScreen.scale-200.png" />
+		<Content Include="Assets\LockScreenLogo.scale-200.png" />
+		<Content Include="Assets\Square150x150Logo.scale-200.png" />
+		<Content Include="Assets\Square44x44Logo.scale-200.png" />
+		<Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+		<Content Include="Assets\StoreLogo.png" />
+		<Content Include="Assets\Wide310x150Logo.scale-200.png" />
+		<Content Include="Strata.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+		<PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+		<PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
+		<PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+		<ApplicationIcon>Strata.ico</ApplicationIcon>
+	</PropertyGroup>
+</Project>

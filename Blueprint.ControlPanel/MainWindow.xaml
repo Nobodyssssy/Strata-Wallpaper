@@ -1,0 +1,137 @@
+<Window
+    x:Class="Blueprint.ControlPanel.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    Title="Strata Wallpaper">
+
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ════════ Custom title bar — 44px ════════ -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="12"
+                        Padding="16,0,0,0"
+                        VerticalAlignment="Center">
+                <Image x:Name="TitleIcon"
+                       Width="24" Height="24"
+                       VerticalAlignment="Center"/>
+                <TextBlock Text="Strata Wallpaper"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ════════ Navigation ════════ -->
+        <muxc:NavigationView x:Name="Nav"
+                             Grid.Row="1"
+                             PaneDisplayMode="Left"
+                             IsBackButtonVisible="Collapsed"
+                             IsSettingsVisible="False"
+                             OpenPaneLength="240"
+                             SelectionChanged="OnNavSelectionChanged"
+                             Background="{ThemeResource NavigationViewContentBackground}">
+
+            <muxc:NavigationView.MenuItems>
+                <muxc:NavigationViewItem Content="Home" Tag="home">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Home"/>
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+
+                <muxc:NavigationViewItem Content="Wallpapers" Tag="wallpapers">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Pictures"/>
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+
+                <muxc:NavigationViewItem Content="Performance" Tag="performance">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D9;"/>
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+
+                <muxc:NavigationViewItem Content="Lock Screen" Tag="lock">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE72E;"/>
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+
+                <muxc:NavigationViewItem Content="Settings" Tag="settings">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Setting"/>
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <muxc:NavigationView.PaneFooter>
+                <StackPanel Padding="8,6,8,12" Spacing="8">
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="4,4,4,0">
+                        <Ellipse x:Name="EngineDot"
+                                 Width="8" Height="8"
+                                 Fill="#6B7280"
+                                 VerticalAlignment="Center"/>
+                        <StackPanel>
+                            <TextBlock x:Name="EngineStateText"
+                                       Text="Engine offline"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock x:Name="EngineDetailText"
+                                       Text="—"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ThemeButton"
+                                Grid.Column="0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="8,4"
+                                Background="Transparent"
+                                BorderThickness="0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon x:Name="ThemeIcon" Glyph="&#xE706;" FontSize="14"/>
+                                <TextBlock x:Name="ThemeLabel" Text="System" FontSize="12"/>
+                            </StackPanel>
+                            <Button.Flyout>
+                                <MenuFlyout Placement="Top">
+                                    <MenuFlyoutItem Text="System" Tag="System" Click="OnThemeMenuClick"/>
+                                    <MenuFlyoutItem Text="Light" Tag="Light" Click="OnThemeMenuClick"/>
+                                    <MenuFlyoutItem Text="Dark" Tag="Dark" Click="OnThemeMenuClick"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <Button x:Name="ExitButton"
+                                Grid.Column="1"
+                                Padding="8,4"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnExitClick"
+                                ToolTipService.ToolTip="Exit Strata Wallpaper">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE7E8;" FontSize="14"/>
+                                <TextBlock Text="Exit" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </muxc:NavigationView.PaneFooter>
+
+            <Frame x:Name="ContentFrame"/>
+        </muxc:NavigationView>
+    </Grid>
+</Window>

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Blueprint.ControlPanel (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Blueprint.ControlPanel (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
