@@ -15,7 +15,7 @@ Strata seamlessly plays your favorite videos behind your desktop icons while mai
 
 ## 📸 Screenshots
 
-![Strata Wallpaper Control Panel](assets/screenshot.png)
+![Strata Wallpaper Control Panel](Assets/screenshot.png)
 *(The Strata Control Panel featuring the Dracula theme)*
 
 ---
