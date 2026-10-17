@@ -14,4 +14,4 @@ libs/mpv/libmpv-2.dll
 # Visual Studio temporary files
 *.png
 !Assets/Strata.png
-!Blueprint.ControlPanel/Assets/*.png
+!Blueprint.ControlPanel/Assets/*.png"publish/" 
