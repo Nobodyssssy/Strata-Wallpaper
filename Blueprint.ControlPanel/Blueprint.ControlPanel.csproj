@@ -32,6 +32,10 @@
 		<ApplicationIcon>Strata.ico</ApplicationIcon>
 		<EnableDefaultPageItems>false</EnableDefaultPageItems>
 	</PropertyGroup>
+	<ItemGroup>
+	  <None Remove="Styles\Themes\RosePine.xaml" />
+	  <None Remove="Styles\Themes\TokyoNight.xaml" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<Page Include="LockPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
@@ -40,6 +44,12 @@
 		<Page Include="LibraryPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
 		<Page Include="PerformancePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
 		<Page Include="SettingsPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+		<Page Include="Styles\Themes\RosePine.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
+		<Page Include="Styles\Themes\TokyoNight.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Page>
 		<Page Include="WallpaperDetailPane.xaml"><Generator>MSBuild:Compile</Generator></Page>
 		
 		<!-- Theme files must NOT have the MSBuild:Compile generator -->
@@ -67,6 +77,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Update="Assets\font\FiraCode-Regular.ttf">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="Assets\font\JetBrainsMono-Regular.ttf">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="Assets\font\Roboto-Regular.ttf">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
 	  <Content Update="Assets\Roboto-Regular.ttf">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>

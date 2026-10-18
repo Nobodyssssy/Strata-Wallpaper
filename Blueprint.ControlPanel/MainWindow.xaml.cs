@@ -3,6 +3,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.IO;
@@ -102,20 +103,24 @@ public sealed partial class MainWindow : Window
         try
         {
             var tb = AppWindow.TitleBar;
-            bool isDark = (this.Content as FrameworkElement)?.ActualTheme == ElementTheme.Dark;
 
-            // Use hardcoded high-contrast colors based on the active theme
-            var foreground = isDark ? Colors.White : Colors.Black;
-            var hoverBg = isDark ? Windows.UI.Color.FromArgb(20, 255, 255, 255) : Windows.UI.Color.FromArgb(20, 0, 0, 0);
-            var pressedBg = isDark ? Windows.UI.Color.FromArgb(40, 255, 255, 255) : Windows.UI.Color.FromArgb(40, 0, 0, 0);
+            var textBrush = Application.Current.Resources["TextFillColorPrimaryBrush"] as SolidColorBrush;
+            var faintBrush = Application.Current.Resources["TextFillColorTertiaryBrush"] as SolidColorBrush;
+            var hoverBrush = Application.Current.Resources["SubtleFillColorSecondaryBrush"] as SolidColorBrush;
+            var pressedBrush = Application.Current.Resources["SubtleFillColorTertiaryBrush"] as SolidColorBrush;
+
+            var foreground = textBrush?.Color ?? Colors.White;
+            var inactive = faintBrush?.Color ?? Colors.Gray;
+            var hover = hoverBrush?.Color ?? Windows.UI.Color.FromArgb(20, 255, 255, 255);
+            var pressed = pressedBrush?.Color ?? Windows.UI.Color.FromArgb(40, 255, 255, 255);
 
             tb.ButtonBackgroundColor = Colors.Transparent;
             tb.ButtonInactiveBackgroundColor = Colors.Transparent;
             tb.ButtonForegroundColor = foreground;
-            tb.ButtonInactiveForegroundColor = Colors.Gray;
-            tb.ButtonHoverBackgroundColor = hoverBg;
+            tb.ButtonInactiveForegroundColor = inactive;
+            tb.ButtonHoverBackgroundColor = hover;
             tb.ButtonHoverForegroundColor = foreground;
-            tb.ButtonPressedBackgroundColor = pressedBg;
+            tb.ButtonPressedBackgroundColor = pressed;
             tb.ButtonPressedForegroundColor = foreground;
         }
         catch (Exception ex)
@@ -124,7 +129,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    // Called when the engine tray menu tries to open the panel
     public void RestoreWindow()
     {
         this.AppWindow.Show();
@@ -134,8 +138,7 @@ public sealed partial class MainWindow : Window
     }
 
     // ── Navigation ──
-    private void OnNavSelectionChanged(NavigationView sender,
-                                       NavigationViewSelectionChangedEventArgs args)
+    private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
         var tag = item.Tag as string;
@@ -168,8 +171,7 @@ public sealed partial class MainWindow : Window
     {
         for (int i = 0; i < Nav.MenuItems.Count; i++)
         {
-            if (Nav.MenuItems[i] is NavigationViewItem item
-                && (item.Tag as string) == tag)
+            if (Nav.MenuItems[i] is NavigationViewItem item && (item.Tag as string) == tag)
             {
                 Nav.SelectedItem = item;
                 return;
@@ -308,67 +310,89 @@ public sealed partial class MainWindow : Window
 
         args.Cancel = true;
 
+        var rememberRow = new Grid
+        {
+            Margin = new Thickness(0, 12, 0, 0),
+            Padding = new Thickness(16, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
         var rememberCheck = new CheckBox
         {
             Content = "Remember my choice and don't ask again",
-            Margin = new Thickness(0, 8, 0, 0)
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        rememberRow.Children.Add(rememberCheck);
+
+        var contentGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var panel = new StackPanel
+        {
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 0
         };
 
-        var panel = new StackPanel { Spacing = 12, MinWidth = 520 };
         panel.Children.Add(new TextBlock
         {
             Text = "Closing the control panel does not have to stop your live wallpapers.",
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 14,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            FontSize = 13,
+            Foreground = GetThemeBrush("TextFillColorSecondaryBrush"),
+            Margin = new Thickness(0, 0, 0, 12)
         });
 
-        string? selectedAction = null;
-        ContentDialog? dialog = null;
+        string selectedAction = "tray";
 
-        void HandleSelection(string selected)
-        {
-            selectedAction = selected;
-            dialog?.Hide();
-        }
+        var minimizeBtn = CreateCloseChoiceButton("Minimize to system tray", "Close this window but keep your live wallpapers running in the background.", "Recommended for everyday use", "tray", "\uE7C4", true, (val) => selectedAction = val);
+        var exitBtn = CreateCloseChoiceButton("Exit Strata Wallpaper", "Stop the wallpaper engine and close the control panel. Your wallpapers will no longer animate.", "", "exit", "\uE7E8", false, (val) => selectedAction = val);
+        var cancelBtn = CreateCloseChoiceButton("Keep Strata open", "Return to the control panel without closing anything.", "", "cancel", "\uE711", false, (val) => selectedAction = val);
 
-        panel.Children.Add(CreateCloseChoiceButton("Minimize to system tray", "Close this window but keep your live wallpapers running in the background.", "Recommended for everyday use", "tray", HandleSelection));
-        panel.Children.Add(CreateCloseChoiceButton("Exit Strata Wallpaper", "Stop the wallpaper engine and close the control panel. Your wallpapers will no longer animate.", "", "exit", HandleSelection));
-        panel.Children.Add(CreateCloseChoiceButton("Keep Strata open", "Return to the control panel without closing anything.", "", "cancel", HandleSelection));
+        panel.Children.Add(minimizeBtn);
+        panel.Children.Add(exitBtn);
+        panel.Children.Add(cancelBtn);
+        panel.Children.Add(rememberRow);
 
-        panel.Children.Add(rememberCheck);
+        contentGrid.Children.Add(panel);
 
-        dialog = new ContentDialog
+        var dialog = new ContentDialog
         {
             Title = "Close Strata Wallpaper?",
-            Content = panel,
-            MinWidth = 560,
+            Content = contentGrid,
+            PrimaryButtonText = "Confirm",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            Background = GetThemeBrush("SolidBackgroundFillColorBaseBrush"),
+            BorderBrush = GetThemeBrush("SurfaceStrokeColorDefaultBrush"),
+            BorderThickness = new Thickness(1),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             RequestedTheme = (this.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default,
             XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
         };
 
-        dialog.KeyDown += (_, e) =>
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary || result == ContentDialogResult.None)
         {
-            if (e.Key == Windows.System.VirtualKey.Escape)
+            if (result == ContentDialogResult.Primary) selectedAction = "tray";
+            else if (result == ContentDialogResult.None) selectedAction = "cancel";
+
+            if (selectedAction == "cancel") { Activate(); return; }
+
+            if (selectedAction == "exit")
             {
-                e.Handled = true;
-                dialog.Hide();
+                if (rememberCheck.IsChecked == true) SaveCloseAction("exit");
+                _forceClose = true;
+                await ShutdownEngineAsync();
+                this.Close();
             }
-        };
-
-        await dialog.ShowAsync();
-
-        if (selectedAction == "exit")
-        {
-            if (rememberCheck.IsChecked == true) SaveCloseAction("exit");
-            _forceClose = true;
-            await ShutdownEngineAsync();
-            this.Close();
-        }
-        else if (selectedAction == "tray")
-        {
-            if (rememberCheck.IsChecked == true) SaveCloseAction("tray");
-            await HideToTrayOrExitAsync();
+            else if (selectedAction == "tray")
+            {
+                if (rememberCheck.IsChecked == true) SaveCloseAction("tray");
+                await HideToTrayOrExitAsync();
+            }
         }
         else
         {
@@ -388,27 +412,24 @@ public sealed partial class MainWindow : Window
         AppWindow.Hide();
     }
 
-    private static Button CreateCloseChoiceButton(string title, string description, string note, string action, Action<string> onSelected)
+    private static Button CreateCloseChoiceButton(string title, string description, string note, string action, string iconGlyph, bool isChecked, Action<string> onSelected)
     {
         var grid = new Grid
         {
             ColumnSpacing = 16,
-            Padding = new Thickness(16)
+            Padding = new Thickness(16),
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
+
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var iconGlyph = action switch
-        {
-            "tray" => "\uE78C",
-            "exit" => "\uE7E8",
-            _ => "\uE711"
-        };
         var icon = new FontIcon
         {
             Glyph = iconGlyph,
-            FontSize = 18,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+            FontSize = 20,
+            Foreground = GetThemeBrush("TextFillColorPrimaryBrush"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -418,68 +439,121 @@ public sealed partial class MainWindow : Window
             CornerRadius = new CornerRadius(8),
             Width = 40,
             Height = 40,
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
-            VerticalAlignment = VerticalAlignment.Top
+            Background = GetThemeBrush("ControlFillColorSecondaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(iconBox, 0);
         grid.Children.Add(iconBox);
 
         var details = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        details.Children.Add(new TextBlock
-        {
-            Text = title,
-            FontSize = 15,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
-        });
-        details.Children.Add(new TextBlock
-        {
-            Text = description,
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 13,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        });
+        details.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = GetThemeBrush("TextFillColorPrimaryBrush") });
+        details.Children.Add(new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Left, FontSize = 12, Foreground = GetThemeBrush("TextFillColorSecondaryBrush") });
+
         if (!string.IsNullOrWhiteSpace(note))
         {
-            details.Children.Add(new TextBlock
+            var noteBox = new Border
             {
-                Text = note,
-                FontSize = 12,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"],
+                Background = GetThemeBrush("SystemFillColorSuccessBackgroundBrush"),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 2, 6, 2),
+                HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 4, 0, 0)
-            });
+            };
+            noteBox.Child = new TextBlock { Text = note, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = GetThemeBrush("SystemFillColorSuccessBrush") };
+            details.Children.Add(noteBox);
         }
         Grid.SetColumn(details, 1);
         grid.Children.Add(details);
 
-        var button = new Button
+        var radioVisual = new RadioButton
         {
-            Content = grid,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(0),
-            Tag = action,
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ControlFillColorDefaultBrush"],
-            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            IsChecked = isChecked,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 0,
+            IsHitTestVisible = false
+        };
+        Grid.SetColumn(radioVisual, 2);
+        grid.Children.Add(radioVisual);
+
+        // Keep the selection outline's layout footprint constant. ContentDialog sizes itself
+        // from the cards' desired size, so changing BorderThickness on the only border can
+        // change the dialog height when the tallest card is deselected.
+        var cardBorder = new Border
+        {
+            Child = grid,
+            CornerRadius = new CornerRadius(6),
+            Background = GetThemeBrush("CardBackgroundFillColorDefaultBrush"),
+            BorderBrush = GetThemeBrush("CardStrokeColorDefaultBrush"),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8)
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
 
-        button.Click += (_, _) => onSelected(action);
+        var border = new Border
+        {
+            Child = cardBorder,
+            CornerRadius = new CornerRadius(8),
+            BorderBrush = GetThemeBrush("TransparentBrush"),
+            BorderThickness = new Thickness(2),
+            Margin = new Thickness(0, 0, 0, 4),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var button = new Button
+        {
+            Content = border,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            Background = GetThemeBrush("TransparentBrush"),
+            BorderThickness = new Thickness(0)
+        };
+
+        button.Click += (_, _) =>
+        {
+            if (button.Parent is StackPanel parentPanel)
+            {
+                foreach (var child in parentPanel.Children)
+                {
+                    if (child is Button b && b.Content is Border bdr && bdr.Child is Border card && card.Child is Grid g)
+                    {
+                        foreach (var element in g.Children)
+                        {
+                            if (element is RadioButton rb) rb.IsChecked = false;
+                        }
+                        bdr.BorderBrush = GetThemeBrush("TransparentBrush");
+                        card.BorderBrush = GetThemeBrush("CardStrokeColorDefaultBrush");
+                        card.BorderThickness = new Thickness(1);
+                    }
+                }
+            }
+
+            radioVisual.IsChecked = true;
+            border.BorderBrush = GetThemeBrush("AccentFillColorDefaultBrush");
+            border.BorderThickness = new Thickness(2);
+            cardBorder.BorderBrush = GetThemeBrush("TransparentBrush");
+            onSelected(action);
+        };
+
+        if (isChecked)
+        {
+            border.BorderBrush = GetThemeBrush("AccentFillColorDefaultBrush");
+            border.BorderThickness = new Thickness(2);
+            cardBorder.BorderBrush = GetThemeBrush("TransparentBrush");
+        }
+
         return button;
     }
 
     private static Microsoft.UI.Xaml.Media.Brush GetThemeBrush(string key)
     {
-        if (Application.Current.Resources.TryGetValue(key, out var value)
-            && value is Microsoft.UI.Xaml.Media.Brush brush)
+        if (Application.Current.Resources.TryGetValue(key, out var value) && value is Microsoft.UI.Xaml.Media.Brush brush)
         {
             return brush;
         }
 
-        return new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(0, 0, 0, 0));
+        return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
     }
 
     private async Task ShutdownEngineAsync()

@@ -40,6 +40,8 @@
                                     <ComboBoxItem Content="Aura" Tag="Aura"/>
                                     <ComboBoxItem Content="Catppuccin" Tag="Catppuccin"/>
                                     <ComboBoxItem Content="Dracula" Tag="Dracula"/>
+                                    <ComboBoxItem Content="Tokyo Night" Tag="Tokyo Night"/>
+                                    <ComboBoxItem Content="Rosé Pine" Tag="Rosé Pine"/>
                                 </ComboBox>
                             </StackPanel>
 
@@ -217,13 +219,22 @@
                 </StackPanel>
             </Grid>
 
-            <!-- ═══════════ Day / Night (desktop) — preserved ═══════════ -->
-            <Expander Header="Day / Night (desktop wallpaper)"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
-                <StackPanel Spacing="12" Padding="0,14,0,0">
+            <!-- ═══════════ Day / Night (desktop) ═══════════ -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Margin="0,0,0,10">
+                <Expander Header="Day / Night (desktop wallpaper)"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="16">
 
-                    <TextBlock Text="Switch the desktop wallpaper automatically based on the time of day."
+                    <StackPanel Spacing="12">
+
+                        <TextBlock Text="Switch the desktop wallpaper automatically based on the time of day."
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"/>
@@ -347,6 +358,7 @@
                     </StackPanel>
                 </StackPanel>
             </Expander>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>

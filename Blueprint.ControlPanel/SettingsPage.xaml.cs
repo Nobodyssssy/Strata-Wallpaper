@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -264,13 +265,21 @@ public sealed partial class SettingsPage : Page
     {
         AccentSwatchPanel.Children.Clear();
 
-        foreach (var scheme in ThemeService.Schemes)
+        // Only show accents that match the currently selected Base Theme
+        string activeTheme = UiSettings.Current.BaseTheme ?? "Aura";
+
+        var filteredSchemes = ThemeService.Schemes
+            .Where(s => s.BaseTheme == activeTheme)
+            .ToList();
+
+        foreach (var scheme in filteredSchemes)
         {
             var ring = new Border
             {
-                Width = 30,
-                Height = 30,
-                CornerRadius = new CornerRadius(15),
+                Width = 26,  // Smaller ring
+                Height = 26, // Smaller ring
+                CornerRadius = new CornerRadius(13),
+                Margin = new Thickness(2, 0, 2, 0),
                 BorderThickness = new Thickness(2),
                 BorderBrush = new SolidColorBrush(
                     scheme.Id == _currentAccentId
@@ -281,8 +290,8 @@ public sealed partial class SettingsPage : Page
 
             var circle = new Ellipse
             {
-                Width = 22,
-                Height = 22,
+                Width = 18,  // Smaller circle
+                Height = 18, // Smaller circle
                 Fill = new SolidColorBrush(scheme.Accent),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -336,15 +345,28 @@ public sealed partial class SettingsPage : Page
         string baseTheme = item.Tag as string ?? "Aura";
         var ui = UiSettings.Current;
         ui.BaseTheme = baseTheme;
+
+        // Automatically switch the accent to match the base theme's default palette
+        if (baseTheme == "Dracula") ui.AccentScheme = "dra_purple";
+        else if (baseTheme == "Catppuccin") ui.AccentScheme = "cat_mauve";
+        else if (baseTheme == "Tokyo Night") ui.AccentScheme = "tokyo_blue";
+        else if (baseTheme == "Rosé Pine") ui.AccentScheme = "rose_iris";
+        else ui.AccentScheme = "aura_purple"; // Aura's default purple
+
         ui.Save();
 
-        // Apply immediately without restarting
+        // Update the UI swatches to reflect the new accent
+        _currentAccentId = ui.AccentScheme;
+        BuildAccentSwatches();
+
+        // Apply both
         ThemeService.ApplyBaseTheme(Application.Current, baseTheme);
-        ThemeService.ApplyFont(Application.Current, ui.UseThemeFont); // <-- ADDED THIS
-        ThemeService.Apply(Application.Current, ThemeService.Get(UiSettings.Current.AccentScheme));
+        ThemeService.ApplyFont(Application.Current, ui.UseThemeFont);
+        ThemeService.Apply(Application.Current, ThemeService.Get(ui.AccentScheme));
 
         ForceUIUpdate();
     }
+
 
     private void OnVariantChanged(object sender, SelectionChangedEventArgs e)
     {

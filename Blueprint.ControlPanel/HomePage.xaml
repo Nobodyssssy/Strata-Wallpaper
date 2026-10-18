@@ -190,12 +190,12 @@
                                                    FontSize="34"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="White"/>
+                                                   Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                             <TextBlock x:Name="CardLockClockDate"
                                                    Text="—"
                                                    FontSize="11"
                                                    HorizontalAlignment="Center"
-                                                   Foreground="White"/>
+                                                   Foreground="{ThemeResource PreviewOverlayTextBrush}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

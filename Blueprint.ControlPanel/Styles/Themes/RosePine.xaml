@@ -1,0 +1,134 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <!-- ROSÉ PINE MAIN (Dark) -->
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="SystemAccentColor">#C4A7E7</Color>
+            <FontFamily x:Key="ThemeFontFamily">ms-appx:///Assets/font/FiraCode-Regular.ttf#Fira Code</FontFamily>
+            
+            <!-- Backgrounds -->
+            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#191724"/>
+            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#1F1D2E"/>
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#191724"/>
+            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#26233A"/>
+            <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="#1F1D2E"/>
+            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#26233A"/>
+            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="#191724"/>
+
+            <!-- Borders & Dividers -->
+            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="SurfaceStrokeColorDefaultBrush" Color="#403D52"/>
+
+            <!-- Text -->
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#E0DEF4"/>
+            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#908CAA"/>
+            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#6E6A86"/>
+            <SolidColorBrush x:Key="TextFillColorDisabledBrush" Color="#403D52"/>
+
+            <!-- Controls -->
+            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#26233A"/>
+            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#1F1D2E"/>
+            <SolidColorBrush x:Key="ButtonBackground" Color="#26233A"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#403D52"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#1F1D2E"/>
+            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="ButtonForeground" Color="#E0DEF4"/>
+            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#191724"/>
+            <SolidColorBrush x:Key="StatusOfflineBrush" Color="#6E6A86"/>
+            <SolidColorBrush x:Key="StatusOnlineBrush" Color="#9CCFD8"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="#F6C177"/>
+            <SolidColorBrush x:Key="ErrorFillBrush" Color="#33EB6F92"/>
+            <SolidColorBrush x:Key="ErrorStrokeBrush" Color="#FFEB6F92"/>
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFEB6F92"/>
+            <SolidColorBrush x:Key="OverlayScrimBrush" Color="#B3000000"/>
+            <SolidColorBrush x:Key="OverlayButtonBrush" Color="#AA000000"/>
+            <SolidColorBrush x:Key="TransparentBrush" Color="#00000000"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderTextBrush" Color="#908CAA"/>
+            <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#D2000000"/>
+            <SolidColorBrush x:Key="PreviewOverlaySecondaryBrush" Color="#5A000000"/>
+            <SolidColorBrush x:Key="PreviewOverlayTextBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlayMutedTextBrush" Color="#B0FFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlaySubtleTextBrush" Color="#CCFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewSeparatorBrush" Color="#50FFFFFF"/>
+            <SolidColorBrush x:Key="FavoriteBrush" Color="#F6C177"/>
+            <SolidColorBrush x:Key="LockBadgeBrush" Color="#CCEB6F92"/>
+            <SolidColorBrush x:Key="LiveContentBadgeBrush" Color="#CC9CCFD8"/>
+            <SolidColorBrush x:Key="ComboBoxBackground" Color="#26233A"/>
+            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#403D52"/>
+            <SolidColorBrush x:Key="ComboBoxForeground" Color="#E0DEF4"/>
+            <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#C4A7E7"/>
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="#C4A7E7"/>
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="#C4A7E7"/>
+
+            <!-- Navigation -->
+            <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#E0DEF4"/>
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#26233A"/>
+            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#C4A7E7"/>
+        </ResourceDictionary>
+
+        <!-- ROSÉ PINE DAWN (Light) -->
+        <ResourceDictionary x:Key="Light">
+            <Color x:Key="SystemAccentColor">#907AA9</Color>
+            <FontFamily x:Key="ThemeFontFamily">ms-appx:///Assets/font/FiraCode-Regular.ttf#Fira Code</FontFamily>
+            
+            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FAF4ED"/>
+            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#F2E9E1"/>
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FAF4ED"/>
+            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#FFF8F2"/>
+            <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="#F2E9E1"/>
+            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#FFF8F2"/>
+            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="#FAF4ED"/>
+
+            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="SurfaceStrokeColorDefaultBrush" Color="#DFDAD9"/>
+
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#575279"/>
+            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#797593"/>
+            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#9893A5"/>
+            <SolidColorBrush x:Key="TextFillColorDisabledBrush" Color="#DFDAD9"/>
+
+            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FFF8F2"/>
+            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#F2E9E1"/>
+            <SolidColorBrush x:Key="ButtonBackground" Color="#FFF8F2"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F2E9E1"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#EBE5DF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="ButtonForeground" Color="#575279"/>
+            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FAF4ED"/>
+            <SolidColorBrush x:Key="StatusOfflineBrush" Color="#9893A5"/>
+            <SolidColorBrush x:Key="StatusOnlineBrush" Color="#56949F"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="#EA9D34"/>
+            <SolidColorBrush x:Key="ErrorFillBrush" Color="#33B4637A"/>
+            <SolidColorBrush x:Key="ErrorStrokeBrush" Color="#FFB4637A"/>
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB4637A"/>
+            <SolidColorBrush x:Key="OverlayScrimBrush" Color="#66000000"/>
+            <SolidColorBrush x:Key="OverlayButtonBrush" Color="#AA000000"/>
+            <SolidColorBrush x:Key="TransparentBrush" Color="#00000000"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="PreviewPlaceholderTextBrush" Color="#797593"/>
+            <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#D2000000"/>
+            <SolidColorBrush x:Key="PreviewOverlaySecondaryBrush" Color="#5A000000"/>
+            <SolidColorBrush x:Key="PreviewOverlayTextBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlayMutedTextBrush" Color="#B0FFFFFF"/>
+            <SolidColorBrush x:Key="PreviewOverlaySubtleTextBrush" Color="#CCFFFFFF"/>
+            <SolidColorBrush x:Key="PreviewSeparatorBrush" Color="#50FFFFFF"/>
+            <SolidColorBrush x:Key="FavoriteBrush" Color="#EA9D34"/>
+            <SolidColorBrush x:Key="LockBadgeBrush" Color="#CCB4637A"/>
+            <SolidColorBrush x:Key="LiveContentBadgeBrush" Color="#CC56949F"/>
+            <SolidColorBrush x:Key="ComboBoxBackground" Color="#FFF8F2"/>
+            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="ComboBoxForeground" Color="#575279"/>
+            <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#907AA9"/>
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="#907AA9"/>
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="#907AA9"/>
+
+            <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#575279"/>
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#DFDAD9"/>
+            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#907AA9"/>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

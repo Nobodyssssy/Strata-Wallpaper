@@ -10,6 +10,13 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- RESTORED: This fixes the Wallpapers page crash -->
+            <Style x:Key="AccentToggleButtonStyle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+            </Style>
+
             <Style x:Key="AccentButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
                 <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
@@ -47,11 +54,17 @@
                 </Setter>
             </Style>
 
-            <Style x:Key="AccentToggleButtonStyle" TargetType="ToggleButton">
-                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}"/>
-                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+            <!-- Added Padding="16" to fix the tight text spacing -->
+            <Style TargetType="Expander">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Padding" Value="16"/>
             </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

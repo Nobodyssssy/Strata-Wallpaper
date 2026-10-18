@@ -151,8 +151,7 @@
                                 </StackPanel>
                                 <ToggleSwitch x:Name="HardwareDecodeToggle"
                                               Grid.Column="1"
-                                              IsOn="True"
-                                              Toggled="OnHardwareDecodeToggled"/>
+                                              IsOn="False" />
                             </Grid>
 
                             <Grid>
@@ -168,8 +167,7 @@
                                 </StackPanel>
                                 <ToggleSwitch x:Name="VSyncToggle"
                                               Grid.Column="1"
-                                              IsOn="True"
-                                              Toggled="OnVSyncToggled"/>
+                                              IsOn="False" />
                             </Grid>
 
                             <Grid>
@@ -185,19 +183,27 @@
                                 </StackPanel>
                                 <ToggleSwitch x:Name="LowLatencyToggle"
                                               Grid.Column="1"
-                                              IsOn="False"
-                                              Toggled="OnLowLatencyToggled"/>
+                                              IsOn="False" />
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Expert Options expander -->
-                    <Expander Header="Expert Options"
-                              HorizontalAlignment="Stretch"
-                              HorizontalContentAlignment="Stretch">
-                        <StackPanel Spacing="14" Padding="0,12,0,0">
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Margin="0,0,0,10">
+                        <Expander Header="Expert Options"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="16">
 
-                            <StackPanel Spacing="4">
+                            <StackPanel Spacing="12">
+
+                                <StackPanel Spacing="4">
                                 <TextBlock Text="Slideshow rotation" FontSize="12"/>
                                 <ToggleSwitch x:Name="SlideshowToggle"
                                               OnContent="On" OffContent="Off"
@@ -243,6 +249,7 @@
                             </StackPanel>
                         </StackPanel>
                     </Expander>
+                    </Border>
                 </StackPanel>
 
                 <!-- ─────────── COLUMN 3: Presets ─────────── -->

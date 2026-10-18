@@ -43,11 +43,15 @@ public sealed partial class PerformancePage : Page
         InitializeComponent();
 
         // Wire events AFTER InitializeComponent so slider / toggles don't
-        // fire while sibling controls are still being built (the crash rule
-        // carried over from the original code).
+        // fire while sibling controls are still being built.
         FpsSlider.ValueChanged += OnFpsSliderChanged;
         SlideshowSlider.ValueChanged += OnSlideshowSliderChanged;
         IdleSlider.ValueChanged += OnIdleSliderChanged;
+
+        // Wire the advanced toggles here to prevent them from saving during load
+        HardwareDecodeToggle.Toggled += OnHardwareDecodeToggled;
+        VSyncToggle.Toggled += OnVSyncToggled;
+        LowLatencyToggle.Toggled += OnLowLatencyToggled;
 
         Loaded += OnPageLoaded;
         Unloaded += OnPageUnloaded;
@@ -438,8 +442,8 @@ public sealed partial class PerformancePage : Page
                 QualityLow.IsChecked = false;
                 QualityMedium.IsChecked = true;
                 QualityUltra.IsChecked = false;
-                HardwareDecodeToggle.IsOn = true;
-                VSyncToggle.IsOn = true;
+                HardwareDecodeToggle.IsOn = false;
+                VSyncToggle.IsOn = false;
                 LowLatencyToggle.IsOn = false;
             }
             finally
@@ -450,8 +454,8 @@ public sealed partial class PerformancePage : Page
             var g = UiSettings.Current.GlobalDefaults;
             g.Fps = 30;
             g.Quality = "medium";
-            g.HardwareDecoding = true;
-            g.VSync = true;
+            g.HardwareDecoding = false; // FIXED: Changed to false
+            g.VSync = false;            // FIXED: Changed to false
             g.LowLatency = false;
             UiSettings.Current.Save();
 

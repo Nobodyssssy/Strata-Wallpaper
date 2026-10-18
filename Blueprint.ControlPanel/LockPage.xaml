@@ -369,12 +369,22 @@
             </Grid>
 
             <!-- ═══════════ Expert: Day/Night for the lock overlay ═══════════ -->
-            <Expander Header="Day / Night videos for the lock overlay"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
-                <StackPanel Spacing="12" Padding="0,14,0,0">
+            <!-- ═══════════ Day / Night (desktop) — preserved ═══════════ -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Margin="0,0,0,10">
+                <Expander Header="Day / Night (desktop wallpaper)"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="16">
 
-                    <TextBlock Text="Choose what plays behind the clock. You can reuse the desktop Day / Night videos, or set an independent schedule and videos just for the lock overlay."
+                    <StackPanel Spacing="12">
+
+                        <TextBlock Text="Choose what plays behind the clock. You can reuse the desktop Day / Night videos, or set an independent schedule and videos just for the lock overlay."
                                FontSize="11"
                                TextWrapping="Wrap"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -498,14 +508,24 @@
                     </Border>
                 </StackPanel>
             </Expander>
+            </Border>
 
             <!-- ═══════════ Security: Mode + Password ═══════════ -->
-            <Expander Header="Security — dismiss mode &amp; password"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
-                <StackPanel Spacing="12" Padding="0,14,0,0">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Margin="0,0,0,10">
+                <Expander Header="Security — dismiss mode &amp; password"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="16">
 
-                    <RadioButton x:Name="LockModeScreensaver"
+                    <StackPanel Spacing="12">
+
+                        <RadioButton x:Name="LockModeScreensaver"
                                  GroupName="LockMode"
                                  Content="Screensaver — any mouse/keyboard input dismisses instantly (no security)"
                                  Checked="OnLockModeChanged"/>
@@ -550,6 +570,7 @@
                     </Border>
                 </StackPanel>
             </Expander>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>
