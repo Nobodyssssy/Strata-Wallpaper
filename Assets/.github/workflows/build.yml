@@ -1,0 +1,38 @@
+name: Build Strata Wallpaper
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore NuGet packages
+      run: msbuild StrataWallpaper.slnx /t:Restore /p:Configuration=Release /p:Platform=x64
+
+    - name: Build Solution
+      run: msbuild StrataWallpaper.slnx /p:Configuration=Release /p:Platform=x64
+
+    # Optional: Upload the build artifacts so you can download the .exe files
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Strata-Wallpaper-Release
+        path: |
+          x64/Release/StrataWallpaper.exe
+          Blueprint.ControlPanel/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/Blueprint.ControlPanel.exe
