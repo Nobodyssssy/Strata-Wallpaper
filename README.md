@@ -54,3 +54,46 @@ Strata seamlessly plays your favorite videos behind your desktop icons while mai
 1. Clone the repository:
    ```bash
    git clone https://github.com/Nobodyssssy/Strata-Wallpaper.git
+
+
+
+Contributing
+
+Contributions, issues, and feature requests are welcome!
+Feel free to check the issues page.
+How to Contribute
+
+    Fork the project.
+
+    Create your feature branch (git checkout -b feature/AmazingFeature).
+
+    Commit your changes (git commit -m 'Add some AmazingFeature').
+
+    Push to the branch (git push origin feature/AmazingFeature).
+
+    Open a Pull Request.
+
+Code Style & Architecture Rules
+
+    C++ Engine: Follow standard C++11/14 conventions. Ensure no memory leaks or detached threads outlive the application lifecycle. All IPC requests are handled on the main thread.
+
+    C# Panel: Follow standard .NET conventions.
+
+        Use async/await for all I/O.
+
+        Crucial: Wrap all async void event handlers in the SafeRun() method to prevent app crashes.
+
+        Crucial: When adding new UI controls (Sliders, Toggles), wire their events in the constructor after InitializeComponent(), and use a _loading boolean flag to prevent them from firing during initial XAML parse.
+
+    Theming: Do not hardcode colors (e.g., #FFFFFF, Colors.Black). Always use {ThemeResource ...} in XAML, and pull brushes via Application.Current.Resources["..."] in C#. If a new color is needed, add it to all 5 theme dictionaries.
+
+📄 License
+
+Distributed under the MIT License. See LICENSE for more information.
+🙏 Acknowledgments
+
+    Video playback powered by libmpv.
+
+    UI built with WinUI 3.
+
+    Themes inspired by Dracula, Catppuccin, Tokyo Night, and Rosé Pine.
