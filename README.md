@@ -16,7 +16,7 @@ Strata seamlessly plays your favorite videos behind your desktop icons while mai
 ## 📸 Screenshots
 
 ![Strata Wallpaper Control Panel](Assets/screenshot.png)
-*(The Strata Control Panel featuring the Dracula theme)*
+*(The Strata Control Panel featuring the Catppuccin theme)*
 
 ---
 
@@ -27,8 +27,8 @@ Strata seamlessly plays your favorite videos behind your desktop icons while mai
 - **Smart Pause:** Automatically freezes playback when a fullscreen game is open, when you're on battery saver, during RDP sessions, or when locked.
 - **Lock Screen Overlay:** A customizable screensaver-style overlay with password protection and a live clock.
 - **Day/Night System:** Automatically swaps wallpapers based on Sunrise/Sunset or Islamic Prayer Times.
-- **Beautiful Themes:** Ships with Aura, Catppuccin, and Dracula themes (with Light/Dark modes).
-- **Performance Focused:** Adjust FPS limits, quality presets, and GPU scalers to save resources.
+- **5 Beautiful Themes:** Ships with Aura, Catppuccin, Dracula, Tokyo Night, and Rosé Pine. Each theme includes Light/Dark modes, 9 custom accent colors, and dynamic developer fonts (Cascadia Code, JetBrains Mono, Fira Code).
+- **Performance Focused:** Adjust FPS limits, quality presets (including RTX VSR), and GPU scalers to save resources.
 
 ---
 
